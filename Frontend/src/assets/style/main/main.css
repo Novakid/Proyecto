@@ -1,0 +1,161 @@
+.app-container {
+  height: 100vh;
+  background: #f4f6f9;
+}
+
+.nav-link {
+  color: #ffffff;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 5px;
+  text-decoration: none;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-link:hover {
+  background: #4d5d74;
+  color: rgb(255, 255, 255);
+}
+
+.topbar {
+  height: 60px;
+  border-bottom: 1px solid #ddd;
+  background: #f8f9fa;
+  font-size: 14px;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar {
+  width: 200px;
+  transition: width 0.3s ease;
+  padding: 10px;
+  background: #111827;
+  color: #E5E7EB;
+}
+
+.sidebar.collapsed {
+  width: 70px;
+}
+
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: white;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+.content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: #f4f6f9;
+}
+
+.app-container {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.table tbody tr {
+  transition: 0.2s;
+  height: 50px;
+}
+
+.sidebar-header {
+  padding: 10px;
+  margin-bottom: 15px;
+}
+
+.sidebar-title {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+  text-shadow: 
+    -0.5px -0.5px 0 #DC2626,
+     0.5px -0.5px 0 #DC2626,
+    -0.5px  0.5px 0 #DC2626,
+     0.5px  0.5px 0 #DC2626;
+}
+
+.toggle-btn i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  position: relative;
+  top: 1px;
+}
+
+.breadcrumb-bar {
+  background: #f4f6f9;
+  font-size: 14px;
+}
+
+.info-section span {
+  color: #555;
+}
+
+.info-section strong {
+  color: #198754; 
+}
+
+@media (max-width: 768px) {
+  .info-section {
+    font-size: 12px;
+    gap: 10px;
+  }
+}
+
+.card {
+  border-radius: 12px;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  transition: 0.2s;
+}
+
+.scroll-box {
+  height: 250px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.scroll-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-box::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
+}

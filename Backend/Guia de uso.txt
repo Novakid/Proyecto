@@ -1,0 +1,31 @@
+Tenemos una estructura donde iniciamos con la carpeta config
+En la carpeta config encontraremos la estructura de conexión a nuestra bd.
+También tenemos un archivo .env donde colocaremos nuestras credenciales a utilizar en la bd.
+
+En uploads encontraremos nuestras rutas para almacenar imagenes
+
+ahora si podremos ingresar a modulos, aquí encontraremos nuestras carpetas que utilizaremos por modulo
+cada carpeta main debera tener su dto, entities y archivos main
+Estructura como debería quedar.
+Modulos
+    Ejemplo carpeta main
+        dto     {Validaciones}
+        entities    {Definicion de la bd}
+    archivo.controller    {Peticiones http}
+    archivo.module     {Contenedor de funcionalidades}
+    archivo.service     {Cerebro para hacer el CRUD}
+
+Nuestros archivos entities será un archivo que nos defina como se guarda en la BD, relaciones
+tipos de datos y estructura interna.
+
+Nuestos archivos DTO serán la validaciones de los datos que vayan llegando y las transformaciones necesarias
+lo cual nos ayudara a evitar errores de datos a la bd.
+
+Nuestros archivos service serán el cerebro de todo lo que haga el backend para poder crear, editar, 
+eliminar y visualizar.
+
+Nuestros archivos controller serán los encargados de obtener los datos, llama a service y luego nos regresa
+la respuesta.
+
+Nuestros modulos se llevara la parte de crear un puente entre archivos y decirle
+aquí quiero utilizar esto en este archivo
