@@ -12,6 +12,7 @@ import { AddAuthentication1700000001000 } from '../migrations/1700000001000-AddA
 import { HardenInvoiceMoneyAndDate1785888000000 } from '../migrations/1785888000000-HardenInvoiceMoneyAndDate';
 import { ClientePrecioEspecial } from '../modules/usuarios/precios-especiales/entities/cliente-precio-especial.entity';
 import { HardenClientePreciosEspeciales1785974400000 } from '../migrations/1785974400000-HardenClientePreciosEspeciales';
+import { AddFacturaPrecioOriginal1786147200000 } from '../migrations/1786147200000-AddFacturaPrecioOriginal';
 
 export default new DataSource({
   type: 'mysql',
@@ -35,6 +36,7 @@ export default new DataSource({
     AddAuthentication1700000001000,
     HardenInvoiceMoneyAndDate1785888000000,
     HardenClientePreciosEspeciales1785974400000,
+    AddFacturaPrecioOriginal1786147200000,
   ],
   synchronize: false,
 });

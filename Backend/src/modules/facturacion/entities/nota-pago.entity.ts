@@ -38,8 +38,8 @@ fecha_cancelado!: Date;
   @Column({ nullable: true })
   folio_cliente!: string;
 
-  @Column({ nullable: true })
-  id_cliente!: number;
+  @Column({ type: 'int', nullable: true })
+  id_cliente!: number | null;
 
   @Column({ nullable: true })
   vendedor!: string;

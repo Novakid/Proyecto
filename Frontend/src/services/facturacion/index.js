@@ -8,5 +8,8 @@ export const createFactura = (data) => {
   return api.post('/facturas', data);
 };
 export const updateFactura = (id, data) => api.patch(`/facturas/${id}`, data);
-export const deleteFactura = (id) => api.delete(`/facturas/${id}`);
+export const cancelFactura = (id) => api.post(`/facturas/${id}/cancelar`);
+export const buscarVendedoresFactura = (search) => api.get('/facturas/catalogos/vendedores', { params: { search } });
+export const buscarClientesFactura = (search) => api.get('/facturas/catalogos/clientes', { params: { search } });
+export const obtenerPrecioFactura = (clienteId, productoId) => api.get('/facturas/catalogos/precio', { params: { clienteId, productoId } });
 //Fin facturas

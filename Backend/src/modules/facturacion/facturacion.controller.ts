@@ -1,6 +1,6 @@
-import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, UseGuards, Param, ParseIntPipe, Patch } from '@nestjs/common';
 import { FacturasService } from './facturacion.service';
-import { CreateFacturaDto } from './dto/create-factura.dto';
+import { CreateFacturaDto, FilterFacturasDto } from './dto/create-factura.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -18,7 +18,29 @@ export class FacturasController {
   }
 
   @Get()
-  findAll() {
-    return this.service.findAll();
+  findAll(@Query() filters: FilterFacturasDto) {
+    return this.service.findAll(filters);
   }
+
+  @Get('catalogos/vendedores')
+  vendedores(@Query('search') search = '') { return this.service.buscarVendedores(search); }
+
+  @Get('catalogos/clientes')
+  clientes(@Query('search') search = '') { return this.service.buscarClientes(search); }
+
+  @Get('catalogos/precio')
+  precio(@Query('clienteId') clienteId: string, @Query('productoId') productoId: string) {
+    return this.service.precioEfectivo(Number(clienteId || 0), Number(productoId));
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) { return this.service.findOne(id); }
+
+  @Patch(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: CreateFacturaDto) {
+    return this.service.update(id, dto);
+  }
+
+  @Post(':id/cancelar')
+  cancel(@Param('id', ParseIntPipe) id: number) { return this.service.cancel(id); }
 }

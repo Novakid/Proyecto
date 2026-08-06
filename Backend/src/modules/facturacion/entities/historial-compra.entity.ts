@@ -22,6 +22,9 @@ export class HistorialCompra {
   @Column('decimal', { precision: 12, scale: 2 })
   precio_unitario!: number;
 
+  @Column('decimal', { precision: 12, scale: 2, nullable: true })
+  precio_original!: number | null;
+
   @Column('decimal', { precision: 12, scale: 2 })
   monto_sin_iva!: number;
 

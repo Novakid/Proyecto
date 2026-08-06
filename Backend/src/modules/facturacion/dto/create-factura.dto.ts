@@ -11,6 +11,7 @@ import {
   ,ArrayNotEmpty
   ,MaxLength
   ,IsDateString
+  ,IsIn
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -107,6 +108,12 @@ export class CreateFacturaDto {
   @MaxLength(255)
   almacen!: string;
 
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  clienteId?: number;
+
   @ValidateNested()
   @Type(() => ClienteDto)
   cliente!: ClienteDto;
@@ -121,4 +128,15 @@ export class CreateFacturaDto {
   @IsOptional()
   @Type(() => TotalesDto)
   totales?: TotalesDto;
+}
+
+export class FilterFacturasDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 8;
+  @IsOptional() @IsString() @MaxLength(255) folio?: string;
+  @IsOptional() @IsString() @MaxLength(255) cliente?: string;
+  @IsOptional() @IsDateString() desde?: string;
+  @IsOptional() @IsDateString() hasta?: string;
+  @IsOptional() @IsIn(['activa', 'cancelada']) estatus?: string;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) monto?: number;
 }

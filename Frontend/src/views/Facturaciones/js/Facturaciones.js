@@ -1,15 +1,21 @@
-import { ref, computed, toRaw } from "vue";
+import { ref, computed } from "vue";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useProductos } from "../../../services/productos/useProductos";
 import { useFacturas } from "../../../services/facturacion/useFacturas";
 import { useUsuarios } from "../../../services/usuarios/useUsuarios";
+import { buscarClientesFactura, buscarVendedoresFactura, obtenerPrecioFactura } from '../../../services/facturacion';
+import { getApiAssetUrl } from '../../../services/api';
 const { usuariosFiltrados, obtenerUsuarios } = useUsuarios();
 const { productos, cargarProductos, filtrar } = useProductos();
-const { facturas ,crear, cargarFacturas } = useFacturas();
+const { guardar, cargarFacturas } = useFacturas();
 const busqueda = ref('');
 const mostrarSugerencias = ref(false);
 const cargandoUsuarios = ref(false);
+const clientesFiltrados = ref([]);
+const vendedoresFiltrados = ref([]);
+const mensajeFactura = ref('');
+const imagenProducto = ref('');
 const productoSeleccionado = ref(null);
 const form = ref({
     folio: '',
@@ -17,6 +23,7 @@ const form = ref({
     vendedor: '',
     almacen: '',
     cliente: {
+        id: null,
         nombre: '',
         rfc: '',
         direccion: '',
@@ -28,7 +35,12 @@ const form = ref({
     }
 });
 const productosFactura = ref([]);
+const editingId = ref(null);
 export function useFacturasForm () {
+    const obtenerImagenProducto = (producto) => {
+        const primeraImagen = producto?.imagenes?.find(imagen => typeof imagen?.url === 'string' && imagen.url.trim());
+        return primeraImagen ? getApiAssetUrl(primeraImagen.url) : null;
+    };
     const buscarVendedores = async () => {
         if (form.value.vendedor.length < 3) {
             usuariosFiltrados.value = [];
@@ -36,13 +48,25 @@ export function useFacturasForm () {
             return;
         }
         cargandoUsuarios.value = true;
-        await obtenerUsuarios({
-            nombre: form.value.vendedor,
-            page: 1,
-            limit: 10
-        });
+        vendedoresFiltrados.value = (await buscarVendedoresFactura(form.value.vendedor)).data;
         cargandoUsuarios.value = false;
         mostrarSugerencias.value = true;
+    };
+    const buscarClientes = async () => {
+        if (form.value.cliente.nombre.length < 3) { clientesFiltrados.value = []; return; }
+        clientesFiltrados.value = (await buscarClientesFactura(form.value.cliente.nombre)).data;
+    };
+    const seleccionarCliente = async (usuario) => {
+        form.value.cliente.id = usuario.id;
+        form.value.cliente.nombre = usuario.Nombre || '';
+        form.value.cliente.rfc = usuario.rfc || '';
+        form.value.cliente.direccion = [usuario.Calle, usuario.num_exterior, usuario.num_interior].filter(Boolean).join(' ');
+        form.value.cliente.colonia = usuario.colonia || '';
+        form.value.cliente.poblacion = usuario.poblacion || '';
+        clientesFiltrados.value = [];
+        await Promise.all(productosFactura.value.map(async item => {
+            item.precioEditable = Number((await obtenerPrecioFactura(usuario.id, item.id)).data.precio);
+        }));
     };
     const seleccionarVendedor = (usuario) => {
         form.value.vendedor = usuario.Nombre;
@@ -52,36 +76,46 @@ export function useFacturasForm () {
         return new Date(fecha).toLocaleDateString()
     }
     const abrirModal = async () => {
-        await cargarProductos();
+        editingId.value = null;
+        productosFactura.value = [];
+        mensajeFactura.value = '';
+        await cargarProductos({ limit: 100, page: 1 });
     };
     const productosFiltrados = computed(() => {
-        if (!busqueda.value) return productos.value;
-        return productos.value.filter(p =>
-            p.codigo.toLowerCase().includes(busqueda.value.toLowerCase())
-        );
+        const activos = productos.value.filter(p => p.activo === true || Number(p.activo) === 1);
+        if (!busqueda.value) return activos;
+        const search = busqueda.value.toLowerCase();
+        return activos.filter(p => String(p.codigo || '').toLowerCase().includes(search) || String(p.descripcion || '').toLowerCase().includes(search));
     });
     const agregarProducto = () => {
         const existe = productosFactura.value.find(p => p.id === productoSeleccionado.value);
         if (existe) {
-            existe.cantidad++;
+            mensajeFactura.value = 'El producto ya fue agregado';
             return;
         }
         const producto = productos.value.find(p => p.id === productoSeleccionado.value);
         if (!producto) return;
+        if (Number(producto.existencia) <= 0) { mensajeFactura.value = 'No hay en stock'; return; }
+        mensajeFactura.value = '';
+        imagenProducto.value = obtenerImagenProducto(producto) || '';
         productosFactura.value.push({
             ...producto,
+            precioOriginal: Number(producto.precio),
+            precioEditable: Number(producto.precio),
             cantidad: 1,
             descuento: 0
         });
+        if (form.value.cliente.id) obtenerPrecioFactura(form.value.cliente.id, producto.id)
+            .then(({ data }) => { productosFactura.value.at(-1).precioEditable = Number(data.precio); });
     };
     const subtotalBruto = computed(() => {
         return productosFactura.value.reduce((acc, item) => {
-            return acc + (item.precio * item.cantidad);
+            return acc + (item.precioEditable * item.cantidad);
         }, 0);
     });
     const descuentoTotal = computed(() => {
         return productosFactura.value.reduce((acc, item) => {
-            const total = item.precio * item.cantidad;
+            const total = item.precioEditable * item.cantidad;
             return acc + (total * (item.descuento / 100));
         }, 0);
     });
@@ -97,14 +131,17 @@ export function useFacturasForm () {
         }).format(valor);
     };
     const construirFactura = async () => {
+        if (!productosFactura.value.length) throw new Error('Agrega al menos un producto');
+        const invalido = productosFactura.value.find(item => item.cantidad < 1 || item.cantidad > item.existencia);
+        if (invalido) throw new Error(`Cantidad inválida para ${invalido.codigo}. Disponible: ${invalido.existencia}`);
         const conceptos = productosFactura.value.map(item => {
-            const subtotal = item.precio * item.cantidad;
+            const subtotal = item.precioEditable * item.cantidad;
             const descuento = Number(item.descuento);
             const total = subtotal - (subtotal * (descuento / 100));
             return {
                 producto_id: item.id,
                 cantidad: item.cantidad,
-                precio_unitario: item.precio,
+                precio_unitario: Number(item.precioEditable),
                 subtotal,
                 descuento,
                 total
@@ -115,7 +152,19 @@ export function useFacturasForm () {
             fecha: form.value.fecha,
             vendedor: form.value.vendedor,
             almacen: form.value.almacen,
-            cliente: { ...form.value.cliente },
+            ...(Number.isInteger(Number(form.value.cliente.id)) && Number(form.value.cliente.id) > 0
+                ? { clienteId: Number(form.value.cliente.id) }
+                : {}),
+            cliente: {
+                nombre: form.value.cliente.nombre,
+                rfc: form.value.cliente.rfc,
+                direccion: form.value.cliente.direccion,
+                colonia: form.value.cliente.colonia,
+                poblacion: form.value.cliente.poblacion,
+                fechaEntrega: form.value.cliente.fechaEntrega,
+                operador: form.value.cliente.operador,
+                credito: Boolean(form.value.cliente.credito)
+            },
             conceptos,
             totales: {
             subtotal: subtotalBruto.value,
@@ -124,8 +173,30 @@ export function useFacturasForm () {
             total: total.value
             }
         };
-        await crear(factura);
+        await guardar(factura, editingId.value);
+        editingId.value = null;
+        await cargarFacturas();
         return factura;
+    };
+    const cargarEdicion = async (factura) => {
+        await cargarProductos({ limit: 100, page: 1 });
+        editingId.value = factura.id;
+        form.value = {
+            folio: factura.folio_cliente || '', fecha: String(factura.fecha_emision || '').slice(0, 10),
+            vendedor: factura.vendedor || '', almacen: factura.almacen || '',
+            cliente: { id: factura.id_cliente || null, nombre: factura.razon_social || '', rfc: factura.rfc || '',
+                direccion: factura.direccion || '', colonia: factura.colonia || '', poblacion: factura.poblacion || '',
+                fechaEntrega: String(factura.fecha_entrega || '').slice(0, 10), operador: factura.operador || '',
+                credito: Number(factura.credito) === 1 }
+        };
+        productosFactura.value = (factura.conceptos || []).map(c => ({
+            ...(c.producto || {}), id: c.id_catalogo,
+            existencia: Number(c.producto?.existencia || 0) + Number(c.cantidad),
+            precioOriginal: c.precio_original == null ? Number(c.producto?.precio || c.precio_unitario) : Number(c.precio_original),
+            precioEditable: Number(c.precio_unitario), cantidad: Number(c.cantidad),
+            descuento: Number(c.precio_unitario) > 0 ? Math.max(0, Math.min(100,
+                100 - (Number(c.monto_sin_iva) / (Number(c.precio_unitario) * Number(c.cantidad))) * 100)) : 0,
+        }));
     };
     const colores = {
         rojo: [185, 28, 28],
@@ -154,21 +225,23 @@ export function useFacturasForm () {
         doc.setFontSize(9)
         doc.text(`Cliente: ${factura.razon_social}`,14,50)
         doc.text(`RFC: ${factura.rfc}`,14,56)
-        doc.text(`DirecciÃƒÂ³n: ${factura.direccion}`,90,50)
+        doc.text(`Dirección: ${factura.direccion || ''}`,90,50)
         doc.text(`Ciudad: ${factura.poblacion}`,90,56)
         const body = factura.conceptos.map((c) => [
-            c.id_catalogo,
+            c.producto?.codigo || c.id_catalogo,
             c.cantidad,
-            `$${c.precio_unitario.toFixed(2)}`,
-            `$${c.monto_sin_iva.toFixed(2)}`,
-            `$${c.monto_iva.toFixed(2)}`,
-            `$${c.monto_total.toFixed(2)}`,
+            c.precio_original == null ? 'N/D' : `$${Number(c.precio_original).toFixed(2)}`,
+            `$${Number(c.precio_unitario).toFixed(2)}`,
+            `$${Number(c.monto_sin_iva).toFixed(2)}`,
+            `$${Number(c.monto_iva).toFixed(2)}`,
+            `$${Number(c.monto_total).toFixed(2)}`,
         ]);
         autoTable(doc,{
             startY:75,
             head:[[
-                "CÃƒÂ³digo",
+                "Código",
                 "Cantidad",
+                "Precio original",
                 "Precio",
                 "Subtotal",
                 "IVA",
@@ -194,7 +267,8 @@ export function useFacturasForm () {
                 lineWidth:0.1
             }
         })
-        const y = doc.lastAutoTable.finalY + 8
+        let y = doc.lastAutoTable.finalY + 8
+        if (y > 245) { doc.addPage(); y = 20; }
 
         doc.setFillColor(240,240,240)
         doc.roundedRect(125,y,75,34,2,2,"F")
@@ -223,7 +297,9 @@ export function useFacturasForm () {
         doc.text("Este documento fue generado por APARICIO REFACCIONES.", 105, 290, {align:"center"})
         // doc.addImage(logoBase64, "PNG", 14, 5, 24, 24)
         // doc.addImage(qrBase64,'PNG',165,245,30,30)
-        doc.output('dataurlnewwindow')
+        const url = URL.createObjectURL(doc.output('blob'));
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
     };
     const construirEtiquetas = (factura) => {
         const etiquetas = [];
@@ -282,5 +358,7 @@ export function useFacturasForm () {
         usuariosFiltrados,
         mostrarSugerencias,
         cargandoUsuarios
+        ,buscarClientes, seleccionarCliente, clientesFiltrados, vendedoresFiltrados, mensajeFactura, imagenProducto
+        ,editingId, cargarEdicion, obtenerImagenProducto
     }
 }
