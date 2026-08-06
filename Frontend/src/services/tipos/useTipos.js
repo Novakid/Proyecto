@@ -7,19 +7,19 @@ import {
   deleteTipo,
   cargarDatosService
 } from '../../services/tipos';
-
+const tiposFiltrados = ref([]);
+const pagination = ref({
+  page: 1,
+  limit: 8,
+  total: 0,
+  lastPage: 0
+});
+const filtros = ref({
+  nombre: '',
+  tipoId: ''
+});
+const tipos = ref([]);
 export function useTipos() {
-  const tiposFiltrados = ref([]);
-  const pagination = ref({
-    page: 1,
-    limit: 8,
-    total: 0,
-    lastPage: 0
-  });
-  const filtros = ref({
-    nombre: '',
-    tipoId: ''
-  });
   const cargarDatos = async () => {
     const resp = await cargarDatosService({
       page: pagination.value.page,
@@ -31,10 +31,10 @@ export function useTipos() {
     pagination.value.total = resp.data.total;
     pagination.value.lastPage = resp.data.lastPage;
   };
-  const tipos = ref([]);
+
   const cargarTipos = async () => {
-    const { data } = await getTipos();
-    tipos.value = data;
+    const { data } = await getTipos({ page: 1, limit: 100 });
+    tipos.value = Array.isArray(data.data) ? data.data : [];
   };
   const crear = async (payload) => {
     await createTipo(payload);

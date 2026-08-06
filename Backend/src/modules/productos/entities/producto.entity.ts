@@ -4,10 +4,11 @@ import {
   Column,
   OneToMany,
   ManyToMany,
-  JoinTable
+  JoinTable,
 } from 'typeorm';
 import { ProductoImagen } from './ProductoImagen.entity';
 import { Tipo } from '../../tipos/entities/tipo.entity';
+import { ClientePrecioEspecial } from '../../usuarios/precios-especiales/entities/cliente-precio-especial.entity';
 
 @Entity('catalogo')
 export class Producto {
@@ -54,4 +55,7 @@ export class Producto {
     inverseJoinColumn: { name: 'tipo_id', referencedColumnName: 'id' },
   })
   tipos!: Tipo[];
+
+  @OneToMany(() => ClientePrecioEspecial, (precio) => precio.producto)
+  preciosEspeciales!: ClientePrecioEspecial[];
 }

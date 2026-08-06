@@ -1,6 +1,8 @@
 import api from '../api';
 //useProductos
-export const getProductos = () => api.get('/productos');
+export const getProductos = (params) => {
+  return api.get('/productos', { params });
+};
 export const getProducto = (id) => api.get(`/productos/${id}`);
 export const createProducto = (data) => {
   return api.post('/productos', data, {

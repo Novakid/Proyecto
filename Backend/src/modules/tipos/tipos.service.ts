@@ -1,12 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { CreateTipoDto, FilterTipoDto } from './dto/create-tipo.dto';
 import { Tipo } from './entities/tipo.entity';
 import { TipoImagen } from './entities/tipo-imagen.entity';
 import { UpdateTipoDto } from './dto/update-tipo.dto';
-import * as fs from 'fs';
-import * as path from 'path';
+import { cleanupUploadedFiles, getStoredUploadPath, removeFileIfExists } from '../../common/uploads/upload-paths';
 
 @Injectable()
 export class TiposService {
@@ -15,20 +14,26 @@ export class TiposService {
         private readonly tipoRepo: Repository<Tipo>,
         @InjectRepository(TipoImagen)
         private readonly imagenRepo: Repository<TipoImagen>,
+        private readonly dataSource: DataSource,
     ) {}
     async create(dto: CreateTipoDto, files: Express.Multer.File[]) {
-        const tipo = this.tipoRepo.create(dto);
-        const savedTipo = await this.tipoRepo.save(tipo);
-        if (files?.length) {
-            const imagenes = files.map(file =>
-            this.imagenRepo.create({
-                url: `/uploads/tipos/${file.filename}`,
-                tipo: savedTipo,
-            }),
-            );
-            await this.imagenRepo.save(imagenes);
+        try {
+            return await this.dataSource.transaction(async (manager) => {
+                const tipoRepo = manager.getRepository(Tipo);
+                const imagenRepo = manager.getRepository(TipoImagen);
+                const savedTipo = await tipoRepo.save(tipoRepo.create(dto));
+                if (files?.length) {
+                    await imagenRepo.save(files.map((file) => imagenRepo.create({
+                        url: `/uploads/tipos/${file.filename}`,
+                        tipo: savedTipo,
+                    })));
+                }
+                return tipoRepo.findOneOrFail({ where: { id: savedTipo.id }, relations: ['imagenes'] });
+            });
+        } catch (error) {
+            cleanupUploadedFiles(files);
+            throw error;
         }
-        return savedTipo;
     }
     async findAll(params: { page?: number; limit?: number; filters?: FilterTipoDto }) {
         const { page = 1, limit = 8, filters } = params;
@@ -67,27 +72,35 @@ export class TiposService {
         return tipo;
     }
     async update(id: number, dto: UpdateTipoDto, files: Express.Multer.File[],) {
-        const tipo = await this.findOne(id);
-        Object.assign(tipo, dto);
-        if (files && files.length > 0) {
-            await this.imagenRepo.delete({ tipo: { id } });
-            const nuevasImagenes = files.map(file =>
-            this.imagenRepo.create({
-                url: `/uploads/tipos/${file.filename}`,
-                tipo,
-            }),
-        );
-        tipo.imagenes = nuevasImagenes;
-    }
-    return this.tipoRepo.save(tipo);
+        let previousImageUrls: string[] = [];
+        try {
+            await this.dataSource.transaction(async (manager) => {
+                const tipoRepo = manager.getRepository(Tipo);
+                const imagenRepo = manager.getRepository(TipoImagen);
+                const tipo = await tipoRepo.findOne({ where: { id }, relations: ['imagenes'] });
+                if (!tipo) throw new NotFoundException('Tipo no encontrado');
+                Object.assign(tipo, dto);
+                await tipoRepo.save(tipo);
+                if (files?.length) {
+                    previousImageUrls = tipo.imagenes.map((imagen) => imagen.url);
+                    if (tipo.imagenes.length) await imagenRepo.remove(tipo.imagenes);
+                    await imagenRepo.save(files.map((file) => imagenRepo.create({
+                        url: `/uploads/tipos/${file.filename}`,
+                        tipo,
+                    })));
+                }
+            });
+        } catch (error) {
+            cleanupUploadedFiles(files);
+            throw error;
+        }
+        for (const url of previousImageUrls) removeFileIfExists(getStoredUploadPath(url));
+        return this.findOne(id);
     }
     async remove(id: number) {
         const tipo = await this.findOne(id);
         for (const img of tipo.imagenes) {
-            const filePath = path.join(process.cwd(), img.url);
-            if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            }
+            removeFileIfExists(getStoredUploadPath(img.url));
         }
         await this.imagenRepo.delete({ tipo: { id } });
         return this.tipoRepo.remove(tipo);

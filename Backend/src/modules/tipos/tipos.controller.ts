@@ -10,71 +10,61 @@ import {
   ParseIntPipe,
   UseInterceptors,
   UploadedFiles,
+  UseGuards,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { TiposService } from './tipos.service';
 import { CreateTipoDto, FilterTipoDto } from './dto/create-tipo.dto';
 import { UpdateTipoDto } from './dto/update-tipo.dto';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { imageUploadOptions, validateUploadedImages } from '../../common/uploads/image-upload.config';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../auth/auth.types';
+import { UploadedFilesCleanupInterceptor } from '../../common/uploads/uploaded-files-cleanup.interceptor';
 
 @Controller('tipos')
 export class TiposController {
     constructor(private readonly service: TiposService) {}
 
     @Post()
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
     @UseInterceptors(
-    FilesInterceptor('imagenes', 10, {
-        storage: diskStorage({
-        destination: './uploads/tipos',
-        filename: (req, file, cb) => {
-            const uniqueName = Date.now() + extname(file.originalname);
-            cb(null, uniqueName);
-        },
-        }),
-    }),
+    FilesInterceptor('imagenes', 10, imageUploadOptions('tipos')),
+    UploadedFilesCleanupInterceptor,
     )
     create(
     @Body() body: CreateTipoDto,
     @UploadedFiles() files: Express.Multer.File[],
     ) {
-        console.log(files);
-    return this.service.create(body, files);
+    return this.service.create(body, validateUploadedImages(files));
     }
     @Get()
-    findAll(@Query() query: any) {
-        const page = Number(query.page) || 1;
-        const limit = Number(query.limit) || 8;
-        const filters: FilterTipoDto = {
-            nombre: query.nombre,
-            tipoId: query.tipoId ? Number(query.tipoId) : undefined,
-        };
-        return this.service.findAll({ page, limit, filters });
+    findAll(@Query() query: FilterTipoDto) {
+        return this.service.findAll({ page: query.page, limit: query.limit, filters: query });
     }
     @Get(':id')
     findOne(@Param('id', ParseIntPipe) id: number) {
         return this.service.findOne(id);
     }
     @Patch(':id')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
     @UseInterceptors(
-    FilesInterceptor('imagenes', 10, {
-        storage: diskStorage({
-        destination: './uploads/tipos',
-        filename: (req, file, cb) => {
-            const uniqueName = Date.now() + extname(file.originalname);
-            cb(null, uniqueName);
-        },
-        }),
-    }),
+    FilesInterceptor('imagenes', 10, imageUploadOptions('tipos')),
+    UploadedFilesCleanupInterceptor,
     )
     update(
         @Param('id', ParseIntPipe) id: number,
         @Body() dto: UpdateTipoDto,
         @UploadedFiles() files: Express.Multer.File[],
     ) {
-        return this.service.update(id, dto, files);
+        return this.service.update(id, dto, validateUploadedImages(files));
     }
     @Delete(':id')
+        @UseGuards(JwtAuthGuard, RolesGuard)
+        @Roles(UserRole.ADMIN)
         remove(@Param('id', ParseIntPipe) id: number) {
         return this.service.remove(id);
     }

@@ -22,10 +22,7 @@ function toggleSidebar() {
         </span>
       </div>
 
-      <button 
-        class="toggle-btn d-flex align-items-center justify-content-center"
-        @click="toggleSidebar"
-      >
+      <button class="toggle-btn d-flex align-items-center justify-content-center" @click="toggleSidebar">
         <i class="fa fa-lg fa-list-ul"></i>
       </button>
 
@@ -35,13 +32,17 @@ function toggleSidebar() {
       <i class="bi bi-house fs-5"></i>
       <span v-if="!collapsed">Dashboard</span>
     </router-link>
-    <router-link to="/productos" class="nav-link">
+    <router-link to="/Productos" class="nav-link">
       <i class="bi bi-archive fs-5"></i>
       <span v-if="!collapsed"> Productos</span>
     </router-link>
     <router-link to="/Facturaciones" class="nav-link">
       <i class="bi bi-clipboard fs-5"></i>
       <span v-if="!collapsed"> Facturaciones</span>      
+    </router-link>
+    <router-link to="/Usuarios" class="nav-link">
+      <i class="fa fa-user-o" aria-hidden="true"></i>
+      <span v-if="!collapsed"> Usuarios</span>
     </router-link>
 
   </aside>

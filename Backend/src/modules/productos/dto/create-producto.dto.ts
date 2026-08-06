@@ -1,23 +1,29 @@
 import { Type, Transform } from 'class-transformer';
-import { IsBoolean, IsNumber, IsString, IsDate, IsArray } from 'class-validator';
+import { ArrayUnique, IsBoolean, IsNumber, IsString, IsDate, IsArray, IsOptional, IsInt, Min, MaxLength, ArrayNotEmpty, IsDateString } from 'class-validator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export class CreateProductoDto {
   @IsString()
+  @MaxLength(50)
   codigo!: string;
 
   @IsString()
+  @MaxLength(2000)
   descripcion!: string;
 
   @Type(() => Number)
   @IsNumber()
+  @Min(0)
   stock!: number;  
 
   @Type(() => Number)
   @IsNumber()
+  @Min(0)
   existencia!: number;
 
   @Type(() => Number)
   @IsNumber()
+  @Min(0)
   precio!: number;
 
   @Transform(({ value }) => value === 'true' || value === true)
@@ -28,19 +34,68 @@ export class CreateProductoDto {
   @IsBoolean()
   activo!: boolean;
 
+  @Transform(({ value }) => value === '' ? undefined : Number(value))
   @Type(() => Number)
   @IsNumber()
-  almacen!: number;
+  @Min(0)
+  @IsOptional()
+  almacen?: number;
 
+  @Transform(({ value }) => value === '' ? undefined : Number(value))
   @Type(() => Number)
   @IsNumber()
-  piso!: number;
+  @Min(0)
+  @IsOptional()
+  piso?: number;
 
-  @Type(() => Date)
+  @Transform(({ value }) => {
+    if (
+      value === '' ||
+      value === undefined ||
+      value === null ||
+      value === 'undefined'
+    ) {
+      return undefined;
+    }
+    return value instanceof Date ? value : new Date(String(value));
+  })
   @IsDate()
-  fecha_ingreso!: Date;
+  @IsOptional()
+  fecha_ingreso?: Date;
 
-  @Type(() => Number)
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    const values = Array.isArray(value) ? value : [value];
+    return values.map((item) => Number(item));
+  })
   @IsArray()
-  tipos!: number[];
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @IsOptional()
+  tipos?: number[];
+}
+
+export class FindProductosDto extends PaginationDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  nombre?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
+  @IsDateString()
+  desde?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
+  @IsDateString()
+  hasta?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : Number(value))
+  @IsInt()
+  @Min(1)
+  tipo?: number;
 }

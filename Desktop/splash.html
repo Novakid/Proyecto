@@ -44,6 +44,22 @@
       font-size: 14px;
       color: #94a3b8;
     }
+
+    .error {
+      display: none;
+      margin-top: 16px;
+      color: #fca5a5;
+      font-size: 14px;
+    }
+
+    .close-button {
+      display: none;
+      margin: 16px auto 0;
+      padding: 8px 16px;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -55,15 +71,32 @@
     </div>
 
     <div id="percent" class="percent">0%</div>
+    <div id="error" class="error" role="alert"></div>
+    <button id="close-button" class="close-button" type="button">Cerrar aplicacion</button>
   </div>
 
   <script>
     const bar = document.getElementById('progress');
     const percent = document.getElementById('percent');
+    const errorMessage = document.getElementById('error');
+    const closeButton = document.getElementById('close-button');
 
-    window.electronAPI.onProgress((value) => {
-      bar.style.width = value + '%';
-      percent.textContent = value + '%';
+    const removeProgressListener = window.splashAPI.onProgress((value) => {
+      const progress = Math.max(0, Math.min(100, Number(value) || 0));
+      bar.style.width = progress + '%';
+      percent.textContent = progress + '%';
+    });
+
+    const removeErrorListener = window.splashAPI.onError((message) => {
+      errorMessage.textContent = String(message);
+      errorMessage.style.display = 'block';
+      closeButton.style.display = 'block';
+    });
+
+    closeButton.addEventListener('click', () => window.splashAPI.quit());
+    window.addEventListener('beforeunload', () => {
+      removeProgressListener();
+      removeErrorListener();
     });
   </script>
 </body>

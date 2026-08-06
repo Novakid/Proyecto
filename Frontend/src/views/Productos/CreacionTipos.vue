@@ -1,102 +1,16 @@
 <script setup>
+import { getApiAssetUrl } from '../../services/api';
 import { ref, onMounted } from 'vue';
 import { useTipos } from '../../services/tipos/useTipos';
 import { reactive } from 'vue';
+import { useTipoForm } from './js/Tipos';
 
 const { tipos, getTipos, obtenerTipo, cargarTipos, crear, eliminar, tiposFiltrados, pagination, filtros, cargarDatos, actualizar } = useTipos();
+const { form, handleFiles, guardarTipo, borrarTipo, filtrarDatos, editarTipo, capturarTipo } = useTipoForm();
 
 onMounted(async () => {
   await cargarDatos();
 });
-const handleFiles = (event) => {
-  const files = event.target.files;
-  imagenes.value = Array.from(files);
-  previews.value = imagenes.value.map(file => URL.createObjectURL(file));
-};
-const imagenes = ref([]);
-const previews = ref([]);
-const form = ref({
-  nombre: '',
-  activo: false,
-  descripcion: '',
-});
-const guardarTipo = async () => {
-  try {
-    const formData = new FormData();
-    formData.append('nombre', form.value.nombre);
-    formData.append('activo', form.value.activo);
-    formData.append('descripcion', form.value.descripcion);
-    imagenes.value.forEach((file) => {
-      formData.append('imagenes', file);
-    });
-    await crear(formData);
-    form.value = {
-      nombre: '',
-      activo: false,
-      descripcion: '',
-    };
-    imagenes.value = [];
-    previews.value = [];
-  } catch (error) {
-    console.error(error);
-  }
-};
-const borrarTipo = async (id) => {
-  try {
-    await eliminar(id);
-  } catch (error) {
-    return error;
-  }
-}
-const resetFiltros = async () => {
-  filtros.nombre = '';
-  filtros.tipoId = '';
-  pagination.page = 1;
-  await cargarDatos();
-};
-const filtrarDatos = async () => {
-  try {
-    pagination.page = 1;
-    const resp = await getTipos({
-      nombre: filtros.nombre,
-      tipoId: filtros.tipoId,
-      page: pagination.page,
-      limit: pagination.limit
-    });
-    tiposFiltrados.value = resp.data;
-    pagination.total = resp.total;
-    pagination.lastPage = resp.lastPage;
-
-  } catch (error) {
-    console.error(error);
-  }
-};
-const editarTipo = async (id) => {
-  const resp = await obtenerTipo(id);
-  const tipo = resp.data;
-  form.value = {
-    idEditar: tipo.id,
-    nombreEditar: tipo.nombre,
-    activoEditar: tipo.activo,
-    descripcionEditar: tipo.descripcion
-  };
-  previews.value = tipo.imagenes?.map(img => `http://localhost:3000${img.url}`) || [];
-  imagenes.value = [];
-};
-const capturarTipo = async () => {
-  try {
-    const formData = new FormData();
-    formData.append('nombre', form.value.nombreEditar);
-    formData.append('activo', form.value.activoEditar);
-    formData.append('descripcion', form.value.descripcionEditar);
-    imagenes.value.forEach((file) => {
-      formData.append('imagenes', file);
-    });
-    await actualizar(form.value.idEditar, formData);
-  } catch (error) {
-    console.error(error);
-  }
-}
 </script>
 <template>
   <div class="col-md-12 mb-3 container-fluid p-4">
@@ -123,7 +37,7 @@ const capturarTipo = async () => {
             <label class="form-label">Tipo</label>
             <select id="filtroSelect" v-model="filtros.tipoId" class="form-select form-select-sm">
               <option value="">Seleccione una opción</option>
-              <option v-for="(item, index) in tipos" :key="item.id" :value="item.id">{{ item.nombre }}</option>
+              <option v-for="item in tipos" :key="item.id" :value="item.id">{{ item.nombre }}</option>
             </select>
           </div>
           <div class="col-md-2">
@@ -150,7 +64,7 @@ const capturarTipo = async () => {
         <tbody>
           <tr v-for="(item, index) in tiposFiltrados" :key="item.id">
             <td>{{ index + 1 }}</td>
-            <td><img :src="`http://localhost:3000${item.imagenes[0]?.url}`" style="width: 50px;" /></td>
+            <td><img :src="getApiAssetUrl(item.imagenes[0]?.url)" style="width: 50px;" /></td>
             <td>{{ new Date(item.fecha).toLocaleString() }}</td>
             <td>{{ item.nombre }}</td>
             <td>{{ item.descripcion }}</td>
@@ -163,18 +77,18 @@ const capturarTipo = async () => {
         </tbody>
       </table>
       <div class="d-flex justify-content-between align-items-center mt-3">
-      <div>
-        Página {{ pagination.page }} de {{ pagination.lastPage }}
+        <div>
+          Página {{ pagination.page }} de {{ pagination.lastPage }}
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-sm btn-secondary" @click="pagination.page--; cargarDatos()" :disabled="pagination.page === 1">
+            Anterior
+          </button>
+          <button class="btn btn-sm btn-secondary"  @click="pagination.page++; cargarDatos()">
+            Siguiente
+          </button>
+        </div>
       </div>
-      <div class="btn-group">
-        <button class="btn btn-sm btn-secondary" @click="pagination.page--; cargarDatos()" :disabled="pagination.page === 1">
-          Anterior
-        </button>
-        <button class="btn btn-sm btn-secondary"  @click="pagination.page++; cargarDatos()">
-          Siguiente
-        </button>
-      </div>
-    </div>
     </div>
   </div>
   <!-- Modal Crear -->
@@ -188,7 +102,6 @@ const capturarTipo = async () => {
         <div class="modal-body">
           <div class="col-md-12 mb-3 container-fluid p-4">
             <div class="row">
-              <!-- IZQUIERDA -->
               <div class="col-md-6">
                 <div class="p-2">
                   <label class="form-label">Nombre del Tipo</label>
@@ -209,13 +122,11 @@ const capturarTipo = async () => {
                   <textarea v-model="form.descripcion" class="form-control" placeholder="Leave a comment here" id="floatingTextarea2" style="height: 100px"></textarea>
                   <label  for="floatingTextarea2">Descripción del producto</label>
                 </div>
-                <!-- 🔥 INPUT IMAGEN -->
                 <div class="p-2">
                   <label class="form-label">Logo del tipo</label>
                   <input type="file" class="form-control" accept="image/*" @change="handleFiles">
                 </div>
               </div>
-              <!-- DERECHA -->
               <div class="col-md-6">
                 <div class="p-2 text-center">
                   <img class="img-fluid rounded shadow-sm" style="max-height: 250px;">
@@ -252,7 +163,6 @@ const capturarTipo = async () => {
         <div class="modal-body">
           <div class="col-md-12 mb-3 container-fluid p-4">
             <div class="row">
-              <!-- IZQUIERDA -->
               <div class="col-md-6">
                 <div class="p-2">
                   <label class="form-label">Nombre del Tipo</label>
@@ -273,13 +183,11 @@ const capturarTipo = async () => {
                   <textarea v-model="form.descripcionEditar" class="form-control" placeholder="Leave a comment here" id="floatingTextarea2" style="height: 100px"></textarea>
                   <label  for="floatingTextarea2">Descripción del producto</label>
                 </div>
-                <!-- 🔥 INPUT IMAGEN -->
                 <div class="p-2">
                   <label class="form-label">Logo del tipo</label>
                   <input type="file" class="form-control" accept="image/*" @change="handleFiles">
                 </div>
               </div>
-              <!-- DERECHA -->
               <div class="col-md-6">
                 <div class="p-2 text-center">
                   <img class="img-fluid rounded shadow-sm" style="max-height: 250px;">

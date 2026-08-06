@@ -16,11 +16,15 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('/productos (GET)', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/productos?limit=1')
       .expect(200)
-      .expect('Hello World!');
+      .expect((response) => {
+        const body = JSON.parse(response.text) as Record<string, unknown>;
+        expect(Array.isArray(body.data)).toBe(true);
+        expect(typeof body.total).toBe('number');
+      });
   });
 
   afterEach(async () => {

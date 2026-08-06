@@ -6,13 +6,15 @@ import { ProductosModule } from './modules/productos/productos.module';
 import { PedidosModule } from './modules/pedidos/pedidos.module';
 import { FacturacionModule } from './modules/facturacion/facturacion.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
+import { UsuarioModule } from './modules/usuarios/usuario.module';
 import { TiposModule } from './modules/tipos/tipos.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { getUploadRoot } from './common/uploads/upload-paths';
 
 @Module({
   imports: [
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      rootPath: getUploadRoot(),
       serveRoot: '/uploads',
     }),
     ConfigModule.forRoot({
@@ -24,6 +26,9 @@ import { TiposModule } from './modules/tipos/tipos.module';
     TiposModule,
     ProductosModule,
     PedidosModule,
-    FacturacionModule],
+    FacturacionModule,
+    UsuarioModule
+    ,AuthModule
+  ],
 })
 export class AppModule {}

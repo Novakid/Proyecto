@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional, IsString, IsNumber } from 'class-validator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 export class CreateTipoDto {
   @IsString()
   nombre!: string;
@@ -12,13 +13,13 @@ export class CreateTipoDto {
   @IsBoolean()
   activo!: boolean;
 }
-export class FilterTipoDto {
+export class FilterTipoDto extends PaginationDto {
   @IsOptional()
   @IsString()
   nombre?: string;
 
   @IsOptional()
-  @Transform(({ value }) => Number(value))
+  @Transform(({ value }) => value === '' ? undefined : Number(value))
   @IsNumber()
   tipoId?: number;
 }

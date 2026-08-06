@@ -23,7 +23,6 @@ onUnmounted(() => {
 
 <template>
   <div class="breadcrumb-bar px-4 py-2 d-flex justify-content-between align-items-center">
-    <!-- IZQUIERDA -->
     <div class="d-flex gap-4 info-section">
       <span>
         Hora Local -

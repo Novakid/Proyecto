@@ -1,0 +1,19 @@
+{
+  "name": "proyecto-gestion",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix Backend && npm install --prefix Frontend && npm install --prefix Desktop",
+    "dev:backend": "npm run start:dev --prefix Backend",
+    "dev:frontend": "npm run dev --prefix Frontend",
+    "dev:desktop": "npm run start:dev --prefix Desktop",
+    "dev": "concurrently -k -n backend,frontend,desktop -c blue,green,magenta \"npm:dev:backend\" \"npm:dev:frontend\" \"npm:dev:desktop\"",
+    "build": "npm run build --prefix Backend && npm run build --prefix Frontend",
+    "test": "npm test --prefix Backend",
+    "lint": "npm run lint --prefix Backend && npm run lint --prefix Frontend",
+    "desktop:dist": "npm run dist --prefix Desktop"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
