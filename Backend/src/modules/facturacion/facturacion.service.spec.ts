@@ -22,7 +22,8 @@ describe('FacturasService', () => {
     return detalleRepo;
   }) };
   const dataSource = { transaction: jest.fn((callback) => callback(manager)) } as unknown as DataSource;
-  const service = new FacturasService(dataSource);
+  const dashboardEvents = { notifyUpdate: jest.fn() };
+  const service = new FacturasService(dataSource, dashboardEvents as never);
   const dto: CreateFacturaDto = {
     folio: 'F-1', vendedor: 'Admin', almacen: 'Principal',
     cliente: { nombre: 'Cliente', rfc: 'XAXX010101000', direccion: 'Calle', colonia: 'Centro', poblacion: 'Ciudad', fechaEntrega: '2026-08-04', operador: 'Admin', credito: false },
@@ -43,11 +44,13 @@ describe('FacturasService', () => {
     expect(result).toMatchObject({ subtotal: 200, descuento: 20, iva: 28.8, total: 208.8 });
     expect(producto.existencia).toBe(8);
     expect(detalleRepo.create).toHaveBeenCalledWith(expect.objectContaining({ precio_unitario: 100, monto_total: 208.8 }));
+    expect(dashboardEvents.notifyUpdate).toHaveBeenCalledTimes(1);
   });
 
   it('rechaza stock insuficiente antes de guardar la nota', async () => {
     await expect(service.create({ ...dto, conceptos: [{ producto_id: 1, cantidad: 11, descuento: 0 }] }))
       .rejects.toBeInstanceOf(BadRequestException);
     expect(notaRepo.save).not.toHaveBeenCalled();
+    expect(dashboardEvents.notifyUpdate).not.toHaveBeenCalled();
   });
 });

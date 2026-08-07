@@ -10,6 +10,7 @@ import { UsuarioModule } from './modules/usuarios/usuario.module';
 import { TiposModule } from './modules/tipos/tipos.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { getUploadRoot } from './common/uploads/upload-paths';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -28,7 +29,8 @@ import { getUploadRoot } from './common/uploads/upload-paths';
     PedidosModule,
     FacturacionModule,
     UsuarioModule
-    ,AuthModule
+    ,AuthModule,
+    DashboardModule
   ],
 })
 export class AppModule {}

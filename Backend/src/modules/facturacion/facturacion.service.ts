@@ -4,12 +4,16 @@ import { NotaPago } from './entities/nota-pago.entity';
 import { HistorialCompra } from './entities/historial-compra.entity';
 import { CreateFacturaDto, FilterFacturasDto } from './dto/create-factura.dto';
 import { Producto } from '../productos/entities/producto.entity';
+import { DashboardEventsService } from '../dashboard/dashboard-events.service';
 
 const roundMoney = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
 
 @Injectable()
 export class FacturasService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly dashboardEvents: DashboardEventsService,
+  ) {}
 
   private assertUniqueProducts(data: CreateFacturaDto) {
     const ids = data.conceptos.map((item) => item.producto_id);
@@ -76,7 +80,7 @@ export class FacturasService {
 
   async create(data: CreateFacturaDto) {
     this.assertUniqueProducts(data);
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const products = await this.lockProducts(manager, data.conceptos.map((x) => x.producto_id));
       const calculated = this.calculate(data, products);
       const notaRepo = manager.getRepository(NotaPago);
@@ -93,6 +97,8 @@ export class FacturasService {
       return { message: 'Factura creada correctamente', id: nota.id, subtotal: calculated.subtotal,
         descuento: calculated.descuento, iva: calculated.iva, total: calculated.total };
     });
+    this.dashboardEvents.notifyUpdate();
+    return result;
   }
 
   private serialize(nota: NotaPago) {
@@ -133,7 +139,7 @@ export class FacturasService {
 
   async update(id: number, data: CreateFacturaDto) {
     this.assertUniqueProducts(data);
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const notaRepo = manager.getRepository(NotaPago);
       const nota = await notaRepo.createQueryBuilder('nota').setLock('pessimistic_write')
         .leftJoinAndSelect('nota.detalles', 'detalle').where('nota.id = :id', { id }).getOne();
@@ -159,10 +165,12 @@ export class FacturasService {
       return { message: 'Factura actualizada correctamente', id, subtotal: calculated.subtotal,
         descuento: calculated.descuento, iva: calculated.iva, total: calculated.total };
     });
+    this.dashboardEvents.notifyUpdate();
+    return result;
   }
 
   async cancel(id: number) {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(NotaPago);
       const nota = await repo.createQueryBuilder('nota').setLock('pessimistic_write')
         .leftJoinAndSelect('nota.detalles', 'detalle').where('nota.id = :id', { id }).getOne();
@@ -175,6 +183,8 @@ export class FacturasService {
       await repo.save(nota);
       return { message: 'Factura cancelada correctamente', id };
     });
+    this.dashboardEvents.notifyUpdate();
+    return result;
   }
 
   async buscarVendedores(search = '') {
