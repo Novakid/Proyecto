@@ -43,4 +43,9 @@ export class FacturasController {
 
   @Post(':id/cancelar')
   cancel(@Param('id', ParseIntPipe) id: number) { return this.service.cancel(id); }
+
+  @Post(':id/simular-timbrado-qa')
+  simularTimbradoQa(@Param('id', ParseIntPipe) id: number) {
+    return this.service.simularTimbradoQa(id);
+  }
 }

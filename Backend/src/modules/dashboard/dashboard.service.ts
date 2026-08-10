@@ -11,15 +11,14 @@ export class DashboardService {
         SELECT
           COALESCE(SUM(CASE
             WHEN fecha_cancelado IS NULL
-              AND fecha_timbrado IS NOT NULL
+              AND COALESCE(timbrado, 0) = 1
               AND DATE(fecha_timbrado) = CURDATE()
             THEN total ELSE 0 END), 0) AS ventasHoy,
           SUM(CASE WHEN DATE(fecha_emision) = CURDATE() THEN 1 ELSE 0 END) AS facturasHoy,
           SUM(CASE
             WHEN DATE(fecha_emision) = CURDATE()
               AND fecha_cancelado IS NULL
-              AND fecha_timbrado IS NULL
-              AND (uuid IS NULL OR uuid = '')
+              AND COALESCE(timbrado, 0) = 0
             THEN 1 ELSE 0 END) AS pendientesHoy
         FROM notas_de_pago
       `) as Promise<Array<{ ventasHoy: string; facturasHoy: string; pendientesHoy: string }>>,
@@ -29,8 +28,7 @@ export class DashboardService {
         FROM notas_de_pago
         WHERE DATE(fecha_emision) = CURDATE()
           AND fecha_cancelado IS NULL
-          AND fecha_timbrado IS NULL
-          AND (uuid IS NULL OR uuid = '')
+          AND COALESCE(timbrado, 0) = 0
         ORDER BY fecha_emision DESC, id DESC
         LIMIT 5
       `) as Promise<Array<{ id: number; cliente: string; fecha: Date }>>,

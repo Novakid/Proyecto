@@ -85,7 +85,10 @@ export class FacturasService {
       const calculated = this.calculate(data, products);
       const notaRepo = manager.getRepository(NotaPago);
       const detalleRepo = manager.getRepository(HistorialCompra);
-      const nota = await notaRepo.save(notaRepo.create(this.noteValues(data, calculated)));
+      const nota = await notaRepo.save(notaRepo.create({
+        ...this.noteValues(data, calculated),
+        timbrada: 0,
+      }));
       await detalleRepo.save(calculated.lines.map((line) => detalleRepo.create({
         id_catalogo: line.producto.id, cantidad: line.item.cantidad,
         precio_original: line.precioOriginal, precio_unitario: line.precioUnitario,
@@ -108,8 +111,10 @@ export class FacturasService {
       precio_unitario: Number(d.precio_unitario), monto_sin_iva: Number(d.monto_sin_iva),
       monto_iva: Number(d.monto_iva), monto_total: Number(d.monto_total), producto: d.producto,
     }));
-    return { ...nota, subtotal: Number(nota.subtotal ?? 0), descuento: Number(nota.descuento ?? 0),
-      total: Number(nota.total ?? 0), estatus: nota.fecha_cancelado ? 'cancelada' : 'activa', conceptos, detalles: undefined };
+    const timbrada = Number(nota.timbrada ?? 0);
+    const estatus = nota.fecha_cancelado ? 'cancelada' : timbrada === 1 ? 'timbrada' : 'pendiente';
+    return { ...nota, timbrada, subtotal: Number(nota.subtotal ?? 0), descuento: Number(nota.descuento ?? 0),
+      total: Number(nota.total ?? 0), estatus, conceptos, detalles: undefined };
   }
 
   async findAll(filters: FilterFacturasDto) {
@@ -185,6 +190,24 @@ export class FacturasService {
     });
     this.dashboardEvents.notifyUpdate();
     return result;
+  }
+
+  async simularTimbradoQa(id: number) {
+    const nota = await this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(NotaPago);
+      const factura = await repo.createQueryBuilder('nota').setLock('pessimistic_write')
+        .where('nota.id = :id', { id }).getOne();
+      if (!factura) throw new NotFoundException('Factura no encontrada');
+      if (!factura.folio_cliente?.startsWith('QA_TEST_')) {
+        throw new BadRequestException('La simulación de timbrado solo está permitida para facturas QA_TEST_');
+      }
+      if (factura.fecha_cancelado) throw new ConflictException('Una factura cancelada no puede simularse como timbrada');
+      factura.timbrada = 1;
+      factura.fecha_timbrado = new Date();
+      return repo.save(factura);
+    });
+    this.dashboardEvents.notifyUpdate();
+    return { message: 'SIMULACIÓN QA DE TIMBRADO realizada', id: nota.id, timbrada: 1 };
   }
 
   async buscarVendedores(search = '') {

@@ -32,6 +32,9 @@ fecha_emision!: Date;
 @Column({ type: 'timestamp', nullable: true })
 fecha_timbrado!: Date;
 
+@Column({ name: 'timbrado', type: 'int', nullable: true, default: 0 })
+timbrada!: number;
+
 @Column({ type: 'timestamp', nullable: true })
 fecha_cancelado!: Date;
 

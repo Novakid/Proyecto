@@ -42,7 +42,7 @@ const facturasHoy = computed(() => {
 });
 const facturasPorTimbrar = computed(() => {
   return facturas.value.filter(
-    f => f.uuid === null || f.uuid === ''
+    f => !f.fecha_cancelado && Number(f.timbrada ?? 0) === 0
   );
 });
 </script>
@@ -124,7 +124,7 @@ const facturasPorTimbrar = computed(() => {
                       <td>{{ item.fecha_entrega }}</td>
                       <td>{{ Number(item.credito) === 1 ? 'Sí' : 'No' }}</td>
                       <td>{{ item.total }}</td>
-                      <td>{{ item.fecha_cancelado ? 'Cancelada' : (item.uuid ? 'Timbrada' : 'Activa') }}</td>
+                      <td>{{ item.fecha_cancelado ? 'Cancelada' : (Number(item.timbrada ?? 0) === 1 ? 'Timbrada' : 'Pendiente') }}</td>
                       <td class="text-center">
                           <div class="d-flex justify-content-center gap-2">
                               <button class="btn btn-sm btn-outline-success" title="Timbrar">

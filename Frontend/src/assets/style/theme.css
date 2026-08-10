@@ -1,0 +1,250 @@
+:root {
+  --app-bg: #f4f6f9;
+  --surface-bg: #ffffff;
+  --surface-secondary: #f8fafc;
+  --surface-muted: #f1f5f9;
+  --text-primary: #212529;
+  --text-secondary: #555555;
+  --border-color: #e5e7eb;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --table-header-bg: #212529;
+  --table-header-text: #ffffff;
+  --hover-bg: #f1f5f9;
+  --dropdown-bg: #ffffff;
+  --modal-bg: #ffffff;
+  --disabled-bg: #e9ecef;
+  --placeholder-color: #6c757d;
+  --shadow-color: rgba(15, 23, 42, 0.12);
+}
+
+:root[data-theme='dark'] {
+  --app-bg: #111827;
+  --surface-bg: #1f2937;
+  --surface-secondary: #253244;
+  --surface-muted: #2d3a4d;
+  --text-primary: #f3f4f6;
+  --text-secondary: #cbd5e1;
+  --border-color: #3f4d61;
+  --input-bg: #182230;
+  --input-border: #526176;
+  --table-header-bg: #17202d;
+  --table-header-text: #f8fafc;
+  --hover-bg: #334155;
+  --dropdown-bg: #243143;
+  --modal-bg: #1f2937;
+  --disabled-bg: #374151;
+  --placeholder-color: #94a3b8;
+  --shadow-color: rgba(0, 0, 0, 0.32);
+}
+
+html,
+body,
+#app,
+.app-container,
+.main-content,
+.content {
+  background-color: var(--app-bg);
+  color: var(--text-primary);
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body,
+.app-container,
+.main-content,
+.content,
+.topbar,
+.breadcrumb-bar,
+.card,
+.modal-content,
+.dropdown-menu,
+.form-control,
+.form-select,
+.table {
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+.topbar,
+.breadcrumb-bar {
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.card,
+.list-group-item {
+  background-color: var(--surface-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.card-header,
+.card-footer,
+.resumen-box,
+.form-section {
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.text-muted,
+.form-text {
+  color: var(--text-secondary) !important;
+}
+
+.table {
+  --bs-table-bg: var(--surface-bg);
+  --bs-table-color: var(--text-primary);
+  --bs-table-border-color: var(--border-color);
+  --bs-table-hover-bg: var(--hover-bg);
+  --bs-table-hover-color: var(--text-primary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.table > thead,
+.table-dark {
+  --bs-table-bg: var(--table-header-bg);
+  --bs-table-color: var(--table-header-text);
+  --bs-table-border-color: var(--border-color);
+}
+
+.table tbody tr:hover,
+.table-hover > tbody > tr:hover > * {
+  background-color: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.form-control,
+.form-select,
+textarea,
+input,
+select {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--input-border);
+}
+
+.form-control::placeholder,
+textarea::placeholder,
+input::placeholder {
+  color: var(--placeholder-color);
+  opacity: 1;
+}
+
+.form-control:focus,
+.form-select:focus,
+textarea:focus,
+input:focus,
+select:focus {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+}
+
+.form-control:disabled,
+.form-select:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: var(--disabled-bg);
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.form-select option,
+datalist option {
+  background-color: var(--dropdown-bg);
+  color: var(--text-primary);
+}
+
+.dropdown-menu {
+  --bs-dropdown-bg: var(--dropdown-bg);
+  --bs-dropdown-color: var(--text-primary);
+  --bs-dropdown-link-color: var(--text-primary);
+  --bs-dropdown-link-hover-bg: var(--hover-bg);
+  --bs-dropdown-link-hover-color: var(--text-primary);
+  --bs-dropdown-border-color: var(--border-color);
+  background-color: var(--dropdown-bg);
+  border-color: var(--border-color);
+}
+
+.modal-content,
+.modal-body,
+.modal-panel {
+  background: var(--modal-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.modal-header,
+.modal-footer {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.btn-close {
+  filter: var(--close-button-filter, none);
+}
+
+:root[data-theme='dark'] .btn-close {
+  --close-button-filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+:root[data-theme='dark'] .bg-white,
+:root[data-theme='dark'] .bg-light {
+  background-color: var(--surface-bg) !important;
+}
+
+:root[data-theme='dark'] .text-dark {
+  color: var(--text-primary) !important;
+}
+
+:root[data-theme='dark'] .shadow-sm,
+:root[data-theme='dark'] .shadow {
+  box-shadow: 0 0.125rem 0.45rem var(--shadow-color) !important;
+}
+
+:root[data-theme='dark'] .modal-producto,
+:root[data-theme='dark'] .modal-header,
+:root[data-theme='dark'] .modal-footer {
+  background: var(--surface-secondary);
+}
+
+/* Los estilos locales de algunas vistas se cargan después del tema global. */
+:root[data-theme='dark'] .modal-body,
+:root[data-theme='dark'] .modal-panel,
+:root[data-theme='dark'] .form-section,
+:root[data-theme='dark'] .resumen-box {
+  background: var(--modal-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+:root[data-theme='dark'] .form-control,
+:root[data-theme='dark'] .form-select,
+:root[data-theme='dark'] textarea,
+:root[data-theme='dark'] input,
+:root[data-theme='dark'] select {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--input-border);
+}
+
+:root[data-theme='dark'] label,
+:root[data-theme='dark'] .form-label {
+  color: var(--text-primary);
+}
+
+:root[data-theme='dark'] .modal-header,
+:root[data-theme='dark'] .modal-footer {
+  border-color: var(--border-color);
+}
+
+:root[data-theme='dark'] .scroll-box::-webkit-scrollbar-thumb {
+  background: #526176;
+}
