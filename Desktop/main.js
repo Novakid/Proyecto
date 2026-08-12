@@ -1,6 +1,9 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
-const { generarHTML } = require('./lable');
+const { generarHTML, validarConfiguracion } = require('./lable');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const { randomUUID } = require('crypto');
 const MAX_LABELS = 500;
 const validateEtiquetas = (etiquetas) => {
   if (!Array.isArray(etiquetas)) throw new Error('etiquetas no es un array');
@@ -9,8 +12,20 @@ const validateEtiquetas = (etiquetas) => {
     numero: String(item?.numero ?? '').slice(0, 100),
     codigo: String(item?.codigo ?? '').slice(0, 100),
     nombre: String(item?.nombre ?? '').slice(0, 200),
+    descripcion: String(item?.descripcion ?? '').slice(0, 300),
     precio: String(item?.precio ?? '').slice(0, 50),
+    adicional: String(item?.adicional ?? '').slice(0, 100),
   }));
+};
+const validateLabelRequest = (payload) => ({
+  etiquetas: validateEtiquetas(payload?.etiquetas),
+  configuracion: validarConfiguracion(payload?.configuracion),
+});
+const loadGeneratedLabelHtml = async (win, html) => {
+  const temporaryFile = path.join(os.tmpdir(), `aparicio-label-${randomUUID()}.html`);
+  fs.writeFileSync(temporaryFile, html, { encoding: 'utf8', flag: 'wx' });
+  try { await win.loadFile(temporaryFile); }
+  finally { fs.rmSync(temporaryFile, { force: true }); }
 };
 if (!app.isPackaged && typeof process.loadEnvFile === 'function') {
   try {
@@ -51,11 +66,11 @@ function closeSplash() {
 ipcMain.on('splash:quit', (event) => {
   if (splash && !splash.isDestroyed() && event.sender === splash.webContents) app.quit();
 });
-ipcMain.handle('preview-etiquetas', async (_event, etiquetas) => {
-  const validatedLabels = validateEtiquetas(etiquetas);
+ipcMain.handle('preview-etiquetas', async (_event, payload) => {
+  const request = validateLabelRequest(payload);
   let win;
   try {
-    const html = generarHTML(validatedLabels);
+    const generated = generarHTML(request.etiquetas, request.configuracion);
     win = new BrowserWindow({
       show: false,
       width: 600,
@@ -63,9 +78,7 @@ ipcMain.handle('preview-etiquetas', async (_event, etiquetas) => {
       webPreferences: { nodeIntegration: false, contextIsolation: true },
     });
 
-    await win.loadURL(
-      'data:text/html;charset=utf-8,' + encodeURIComponent(html)
-    );
+    await loadGeneratedLabelHtml(win, generated.html);
 
     await new Promise(r => setTimeout(r, 500));
 
@@ -73,11 +86,6 @@ ipcMain.handle('preview-etiquetas', async (_event, etiquetas) => {
     const pdf = await win.webContents.printToPDF({
 
       printBackground: true,
-
-      pageSize: {
-        width: 50000,
-        height: 25000
-      },
 
       margins: {
         top: 0,
@@ -91,20 +99,22 @@ ipcMain.handle('preview-etiquetas', async (_event, etiquetas) => {
     });
 
 
-    return pdf;
+    return { pdf, warnings: generated.warnings, config: generated.config, total: generated.total };
   } catch (error) {
     console.error('ERROR PDF:', error);
-    return null;
+    throw new Error(error instanceof Error ? error.message : 'No fue posible generar las etiquetas');
   } finally {
     if (win && !win.isDestroyed()) win.close();
   }
 });
-ipcMain.handle('print-labels', async (_event, etiquetas) => {
-  const html = generarHTML(validateEtiquetas(etiquetas));
+ipcMain.handle('print-labels', async (_event, payload) => {
+  const request = validateLabelRequest(payload);
+  const generated = generarHTML(request.etiquetas, request.configuracion);
   const win = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false, contextIsolation: true } });
   try {
-    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-    return await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true });
+    await loadGeneratedLabelHtml(win, generated.html);
+    const pdf = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    return { pdf, warnings: generated.warnings, config: generated.config, total: generated.total };
   } finally {
     win.close();
   }

@@ -6,7 +6,9 @@
     "start": "electron .",
     "start:dev": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis",
+    "test": "node --test lable.test.js",
+    "test:pdf": "electron label-pdf.smoke.js"
   },
   "keywords": [],
   "author": "",

@@ -306,30 +306,33 @@ export function useFacturasForm () {
         factura.conceptos.forEach(item => {
             for (let i = 0; i < item.cantidad; i++) {
             etiquetas.push({
-                numero: `Producto: ${i + 1}`,
-                codigo: `COD-${item.id_catalogo}`,
-                nombre: `Producto ${item.id_catalogo}`,
-                precio: item.precio_unitario
+                codigo: item.producto?.codigo || String(item.id_catalogo),
+                nombre: item.producto?.descripcion || `Producto ${item.id_catalogo}`,
+                descripcion: item.producto?.descripcion || '',
+                precio: Number(item.precio_unitario).toFixed(2),
+                adicional: `Unidad ${i + 1} de ${item.cantidad}`
             });
             }
         });
         return etiquetas;
     };
-    const previewEtiquetas = async (factura) => {
+    const previewEtiquetas = async (factura, configuracion) => {
         const etiquetas = construirEtiquetas(factura);
         try {
             if (!window.electronAPI?.previewEtiquetas) {
                 console.warn('La previsualizacion de etiquetas solo esta disponible en Electron');
                 return;
             }
-            const buffer = await window.electronAPI.previewEtiquetas(etiquetas);
-            if (!buffer) {
+            const result = await window.electronAPI.previewEtiquetas({ etiquetas, configuracion });
+            if (!result?.pdf) {
             console.error("PDF vacio");
             return;
             }
-            const blob = new Blob([buffer], { type: 'application/pdf' });
+            const blob = new Blob([result.pdf], { type: 'application/pdf' });
             const url = URL.createObjectURL(blob);
             window.open(url);
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+            return result;
         } catch (error) {
             console.error("ERROR", error);
         }

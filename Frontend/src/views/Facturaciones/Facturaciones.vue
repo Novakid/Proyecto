@@ -8,6 +8,17 @@ const { facturas, pagination, filtros, errorFacturas, cargarFacturas, aplicarFil
 const { formatearFecha, busqueda, productoSeleccionado, form, abrirModal, productosFiltrados, productosFactura, agregarProducto, subtotalBruto, descuentoTotal, iva, total, formatoMoneda, construirFactura, generarPDF, previewEtiquetas, buscarVendedores, buscarClientes, seleccionarCliente, clientesFiltrados, vendedoresFiltrados, mensajeFactura, imagenProducto, editingId, cargarEdicion } = useFacturasForm();
 const detalleFactura = ref(null);
 const mensajeAccion = ref('');
+const facturaEtiquetas = ref(null);
+const procesandoEtiquetas = ref(false);
+const errorEtiquetas = ref('');
+const avisosEtiquetas = ref([]);
+const labelPresets = {
+  '50x25': { anchoMm: 50, altoMm: 25 }, '50x30': { anchoMm: 50, altoMm: 30 },
+  '60x40': { anchoMm: 60, altoMm: 40 }, '100x50': { anchoMm: 100, altoMm: 50 }
+};
+const savedLabelConfig = (() => { try { return JSON.parse(localStorage.getItem('label_print_config') || 'null'); } catch { return null; } })();
+const labelConfig = ref(savedLabelConfig || { preset: '50x25', anchoMm: 50, altoMm: 25, margenMm: 0, paddingMm: 2, fuentePt: 9, orientacion: 'horizontal' });
+const totalEtiquetas = computed(() => (facturaEtiquetas.value?.conceptos || []).reduce((sum, item) => sum + Number(item.cantidad || 0), 0));
 onMounted(async () => {
   await cargarFacturas();
 });
@@ -32,6 +43,35 @@ const guardarFactura = async () => {
   catch (error) { mensajeAccion.value = error.response?.data?.message || error.message || 'No fue posible guardar'; }
 };
 const pdfCompleto = async (item) => generarPDF(await obtener(item.id));
+const abrirConfiguracionEtiquetas = async (item) => {
+  errorEtiquetas.value = ''; avisosEtiquetas.value = [];
+  try {
+    facturaEtiquetas.value = await obtener(item.id);
+    Modal.getOrCreateInstance(document.getElementById('modalEtiquetas')).show();
+  } catch (error) { mensajeAccion.value = error.response?.data?.message || 'No fue posible cargar los productos de la factura'; }
+};
+const aplicarPresetEtiqueta = () => {
+  const preset = labelPresets[labelConfig.value.preset];
+  if (preset) Object.assign(labelConfig.value, preset);
+};
+const validarLabelConfig = () => {
+  const c = labelConfig.value;
+  const rules = [['anchoMm', 15, 210], ['altoMm', 10, 297], ['margenMm', 0, 10], ['paddingMm', 0, 10], ['fuentePt', 5, 30]];
+  for (const [field, min, max] of rules) if (!Number.isFinite(Number(c[field])) || Number(c[field]) < min || Number(c[field]) > max) throw new Error(`${field} debe estar entre ${min} y ${max}`);
+  if (Number(c.margenMm) * 2 >= Number(c.anchoMm) || Number(c.margenMm) * 2 >= Number(c.altoMm)) throw new Error('El margen consume todo el espacio imprimible');
+  if (Number(c.paddingMm) * 2 >= Number(c.anchoMm) - Number(c.margenMm) * 2 || Number(c.paddingMm) * 2 >= Number(c.altoMm) - Number(c.margenMm) * 2) throw new Error('El padding consume todo el espacio de la etiqueta');
+};
+const abrirPreviewEtiquetas = async () => {
+  procesandoEtiquetas.value = true; errorEtiquetas.value = ''; avisosEtiquetas.value = [];
+  try {
+    validarLabelConfig();
+    const config = { anchoMm: Number(labelConfig.value.anchoMm), altoMm: Number(labelConfig.value.altoMm), margenMm: Number(labelConfig.value.margenMm), paddingMm: Number(labelConfig.value.paddingMm), fuentePt: Number(labelConfig.value.fuentePt), orientacion: labelConfig.value.orientacion };
+    localStorage.setItem('label_print_config', JSON.stringify({ ...config, preset: labelConfig.value.preset }));
+    const result = await previewEtiquetas(facturaEtiquetas.value, config);
+    avisosEtiquetas.value = result?.warnings || [];
+  } catch (error) { errorEtiquetas.value = error.message || 'No fue posible abrir la vista previa'; }
+  finally { procesandoEtiquetas.value = false; }
+};
 const toggleActions = (event) => Dropdown.getOrCreateInstance(event.currentTarget).toggle();
 const facturasHoy = computed(() => {
   const hoy = new Date().toISOString().split('T')[0];
@@ -133,7 +173,7 @@ const facturasPorTimbrar = computed(() => {
                               <button @click="pdfCompleto(item)" class="btn btn-sm btn-outline-danger" title="Ver PDF">
                                 <i class="bi bi-file-earmark-pdf"></i>
                               </button>
-                              <button @click="previewEtiquetas(item)" class="btn btn-sm btn-outline-primary" title="Imprimir etiquetas">
+                              <button @click="abrirConfiguracionEtiquetas(item)" class="btn btn-sm btn-outline-primary" title="Imprimir etiquetas">
                                 <i class="bi bi-upc-scan"></i>
                               </button>
                               <div class="dropdown">
@@ -378,6 +418,26 @@ const facturasPorTimbrar = computed(() => {
         <div class="text-end"><strong>Subtotal:</strong> {{ formatoMoneda(detalleFactura.subtotal) }} · <strong>Descuento:</strong> {{ formatoMoneda(detalleFactura.descuento) }} · <strong>Total:</strong> {{ formatoMoneda(detalleFactura.total) }}</div>
       </div>
       <div class="modal-footer"><button @click="pdfCompleto(detalleFactura)" class="btn btn-outline-danger">PDF</button><button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+    </div></div>
+  </div>
+  <div class="modal fade" id="modalEtiquetas" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Configurar etiquetas</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div v-if="errorEtiquetas" class="alert alert-danger">{{ errorEtiquetas }}</div>
+        <div v-if="avisosEtiquetas.length" class="alert alert-warning"><strong>Avisos de contenido:</strong><ul class="mb-0"><li v-for="warning in avisosEtiquetas" :key="warning">{{ warning }}</li></ul></div>
+        <div class="alert alert-info">Se generarán <strong>{{ totalEtiquetas }}</strong> etiquetas, una página por cada unidad.</div>
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Tamaño</label><select v-model="labelConfig.preset" class="form-select" @change="aplicarPresetEtiqueta"><option value="50x25">50 × 25 mm</option><option value="50x30">50 × 30 mm</option><option value="60x40">60 × 40 mm</option><option value="100x50">100 × 50 mm</option><option value="custom">Personalizado</option></select></div>
+          <div class="col-md-3"><label class="form-label">Ancho (mm)</label><input v-model.number="labelConfig.anchoMm" type="number" min="15" max="210" step="0.1" class="form-control" @input="labelConfig.preset = 'custom'"></div>
+          <div class="col-md-3"><label class="form-label">Alto (mm)</label><input v-model.number="labelConfig.altoMm" type="number" min="10" max="297" step="0.1" class="form-control" @input="labelConfig.preset = 'custom'"></div>
+          <div class="col-md-3"><label class="form-label">Margen (mm)</label><input v-model.number="labelConfig.margenMm" type="number" min="0" max="10" step="0.1" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Padding (mm)</label><input v-model.number="labelConfig.paddingMm" type="number" min="0" max="10" step="0.1" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Fuente (pt)</label><input v-model.number="labelConfig.fuentePt" type="number" min="5" max="30" step="0.5" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">Orientación</label><select v-model="labelConfig.orientacion" class="form-select"><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary" :disabled="procesandoEtiquetas || totalEtiquetas < 1" @click="abrirPreviewEtiquetas"><span v-if="procesandoEtiquetas" class="spinner-border spinner-border-sm me-2"></span>Abrir vista previa</button><button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button></div>
     </div></div>
   </div>
 </template>
