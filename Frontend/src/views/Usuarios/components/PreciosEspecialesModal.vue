@@ -177,5 +177,11 @@ async function cambiarEstatus(item) {
 
 <style scoped>
 .modal-backdrop-custom { position: fixed; inset: 0; z-index: 2000; background: rgb(0 0 0 / 55%); display: grid; place-items: center; padding: 1rem; }
-.modal-panel { background: white; border-radius: .5rem; width: min(1200px, 98vw); max-height: 94vh; overflow: auto; box-shadow: 0 1rem 3rem rgb(0 0 0 / 30%); }
+.modal-panel { background: var(--modal-bg); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: .5rem; width: min(1200px, 98vw); max-height: 94dvh; overflow: auto; box-shadow: 0 1rem 3rem rgb(0 0 0 / 30%); }
+@media (max-width: 575.98px) {
+  .modal-backdrop-custom { padding: 0; }
+  .modal-panel { width: 100vw; min-height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; }
+  .modal-panel .modal-header, .modal-panel .modal-body, .modal-panel .modal-footer { padding: 1rem; }
+  .modal-panel .modal-footer .btn { width: 100%; }
+}
 </style>

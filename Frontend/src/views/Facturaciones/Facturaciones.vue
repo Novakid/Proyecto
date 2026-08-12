@@ -49,9 +49,9 @@ const facturasPorTimbrar = computed(() => {
 <template>
   <div class="col-md-12 mb-3 container-fluid p-4">
       <!-- HEADER -->
-      <div class="d-flex justify-content-between align-items-center">
+      <div class="page-header d-flex justify-content-between align-items-center gap-2">
           <h4 class="mb-0">Gestión de facturas</h4>
-          <div class="d-flex gap-4">
+          <div class="page-summary d-flex gap-4">
               <span>Facturas hoy: <strong class="text-success">{{ facturasHoy.length }}</strong></span>
               <span>Por timbrar: <strong class="text-warning">{{ facturasPorTimbrar.length }}</strong></span>
           </div>
@@ -103,7 +103,7 @@ const facturasPorTimbrar = computed(() => {
       </div>
       <!-- TABLA -->
       <div class="mt-3 facturas-table">
-          <table class="table table-hover align-middle custom-table">
+          <div class="table-responsive"><table class="table table-hover align-middle custom-table">
               <thead class="table-dark">
                   <tr>
                       <th>Folio</th>
@@ -162,7 +162,7 @@ const facturasPorTimbrar = computed(() => {
                       </td>
                   </tr>
               </tbody>
-          </table>
+          </table></div>
           <div v-if="errorFacturas || mensajeAccion" class="alert alert-warning">{{ errorFacturas || mensajeAccion }}</div>
           <nav class="d-flex justify-content-center align-items-center gap-3">
             <button class="btn btn-outline-secondary btn-sm" :disabled="pagination.page <= 1" @click="cargarFacturas(pagination.page - 1)">Anterior</button>

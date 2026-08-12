@@ -30,6 +30,7 @@
 .main-content {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .sidebar {
@@ -130,6 +131,53 @@
 }
 
 @media (max-width: 768px) {
+  .sidebar,
+  .sidebar.collapsed {
+    flex: 0 0 64px;
+    width: 64px;
+    padding: 8px;
+  }
+
+  .sidebar .sidebar-title-button,
+  .sidebar .nav-link span,
+  .sidebar .sidebar-user span,
+  .sidebar .sidebar-logout span {
+    display: none;
+  }
+
+  .sidebar .sidebar-header,
+  .sidebar .nav-link,
+  .sidebar .sidebar-user,
+  .sidebar .sidebar-logout {
+    justify-content: center;
+  }
+
+  .sidebar .sidebar-header {
+    min-height: 44px;
+    padding: 4px;
+    margin-bottom: 8px;
+  }
+
+  .content,
+  .container-fluid.p-4 {
+    padding: 12px !important;
+  }
+
+  .page-header,
+  .page-actions,
+  .page-summary,
+  .responsive-pager {
+    align-items: stretch !important;
+    flex-direction: column;
+  }
+
+  .page-actions .btn,
+  .page-actions a,
+  .responsive-pager .btn-group,
+  .responsive-pager .btn {
+    width: 100%;
+  }
+
   .info-section {
     font-size: 12px;
     gap: 10px;

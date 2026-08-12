@@ -24,9 +24,9 @@ onMounted(async () => {
 <template>
 <div class="col-md-12 mb-3 container-fluid p-4">
   <!-- HEADER -->
-  <div class="d-flex justify-content-between align-items-center">
+  <div class="page-header d-flex justify-content-between align-items-center gap-2">
     <h4 class="mb-0">Productos</h4>
-    <div class="d-flex gap-2">
+    <div class="page-actions d-flex gap-2">
       <button data-bs-toggle="modal" data-bs-target="#creacion" class="btn btn-primary btn-sm">
         <i class="fa fa-plus"></i> Nuevo Producto
       </button>
@@ -68,7 +68,7 @@ onMounted(async () => {
   <!-- TABLA -->
   <div class="mt-3">
     <div v-if="errorCarga" class="alert alert-danger" role="alert">{{ errorCarga }}</div>
-    <table class="table table-hover align-middle custom-table">
+    <div class="table-responsive"><table class="table table-hover align-middle custom-table">
       <thead class="table-dark">
         <tr class="text-center">
           <th>#</th>
@@ -97,8 +97,8 @@ onMounted(async () => {
           </td>
         </tr>
       </tbody>
-    </table>
-      <div class="d-flex justify-content-between align-items-center mt-3">
+    </table></div>
+      <div class="responsive-pager d-flex justify-content-between align-items-center gap-2 mt-3">
         <div>
           Página {{ pagination.page }} de {{ pagination.lastPage }}
         </div>
