@@ -37,11 +37,14 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "img/vocho_rojo.ico"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "img/vocho_rojo.ico",
+      "uninstallerIcon": "img/vocho_rojo.ico"
     }
   }
 }

@@ -152,7 +152,7 @@ async function createWindows() {
     width: 1000,
     height: 700,
     show: false,
-    icon: path.join(__dirname, 'img/posiblelogo.png'),
+    icon: path.join(__dirname, 'img/vocho_rojo.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
