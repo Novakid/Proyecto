@@ -1,25 +1,29 @@
-import { Controller, Post, Body, Get, Query, UseGuards, Param, ParseIntPipe, Patch } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, UseGuards, Param, ParseIntPipe, Patch, Req } from '@nestjs/common';
 import { FacturasService } from './facturacion.service';
 import { CreateFacturaDto, FilterFacturasDto } from './dto/create-factura.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/auth.types';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
+import type { AuthenticatedRequest } from '../auth/jwt-auth.guard';
 
 @Controller('facturas')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions('facturacion.ver')
 export class FacturasController {
   constructor(private readonly service: FacturasService) {}
 
   @Post()
-  create(@Body() dto: CreateFacturaDto) {
-    return this.service.create(dto);
+  @RequirePermissions('facturacion.crear')
+  create(@Body() dto: CreateFacturaDto, @Req() req: AuthenticatedRequest) {
+    return this.service.create(dto, req.user!.sub);
   }
 
   @Get()
-  findAll(@Query() filters: FilterFacturasDto) {
-    return this.service.findAll(filters);
+  findAll(@Query() filters: FilterFacturasDto, @Req() req: AuthenticatedRequest) {
+    return this.service.findAll(filters, req.user!.sub, req.user!.permissions?.includes('facturacion.ver_todas') ?? false);
   }
 
   @Get('catalogos/vendedores')
@@ -34,18 +38,22 @@ export class FacturasController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) { return this.service.findOne(id); }
+  @RequirePermissions('facturacion.detalles')
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) { return this.service.findOne(id, req.user!.sub, req.user!.permissions?.includes('facturacion.ver_todas') ?? false); }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: CreateFacturaDto) {
-    return this.service.update(id, dto);
+  @RequirePermissions('facturacion.editar')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: CreateFacturaDto, @Req() req: AuthenticatedRequest) {
+    return this.service.update(id, dto, req.user!.sub, req.user!.permissions?.includes('facturacion.ver_todas') ?? false);
   }
 
   @Post(':id/cancelar')
-  cancel(@Param('id', ParseIntPipe) id: number) { return this.service.cancel(id); }
+  @RequirePermissions('facturacion.cancelar')
+  cancel(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) { return this.service.cancel(id, req.user!.sub, req.user!.permissions?.includes('facturacion.ver_todas') ?? false); }
 
   @Post(':id/simular-timbrado-qa')
-  simularTimbradoQa(@Param('id', ParseIntPipe) id: number) {
-    return this.service.simularTimbradoQa(id);
+  @RequirePermissions('facturacion.timbrar')
+  simularTimbradoQa(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+    return this.service.simularTimbradoQa(id, req.user!.sub, req.user!.permissions?.includes('facturacion.ver_todas') ?? false);
   }
 }

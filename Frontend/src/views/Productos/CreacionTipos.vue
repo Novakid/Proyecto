@@ -1,12 +1,11 @@
 <script setup>
 import { getApiAssetUrl } from '../../services/api';
-import { ref, onMounted } from 'vue';
+import { onMounted } from 'vue';
 import { useTipos } from '../../services/tipos/useTipos';
-import { reactive } from 'vue';
 import { useTipoForm } from './js/Tipos';
 
-const { tipos, getTipos, obtenerTipo, cargarTipos, crear, eliminar, tiposFiltrados, pagination, filtros, cargarDatos, actualizar } = useTipos();
-const { form, handleFiles, guardarTipo, borrarTipo, filtrarDatos, editarTipo, capturarTipo } = useTipoForm();
+const { tipos, tiposFiltrados, pagination, filtros, cargarDatos } = useTipos();
+const { form, previews, handleFiles, guardarTipo, borrarTipo, filtrarDatos, editarTipo, capturarTipo } = useTipoForm();
 
 onMounted(async () => {
   await cargarDatos();
@@ -64,14 +63,23 @@ onMounted(async () => {
         <tbody>
           <tr v-for="(item, index) in tiposFiltrados" :key="item.id">
             <td>{{ index + 1 }}</td>
-            <td><img :src="getApiAssetUrl(item.imagenes[0]?.url)" style="width: 50px;" /></td>
+            <td>
+              <img v-if="item.imagenes?.[0]?.url" :src="getApiAssetUrl(item.imagenes[0].url)" class="type-table-image" alt="Logo del tipo">
+              <span v-else class="type-table-image-placeholder" title="Sin imagen"><i class="bi bi-image"></i></span>
+            </td>
             <td>{{ new Date(item.fecha).toLocaleString() }}</td>
             <td>{{ item.nombre }}</td>
             <td>{{ item.descripcion }}</td>
-            <td>{{ item.activo ? 'Activo' : 'Desactivado'}}</td>
+            <td><span class="badge" :class="item.activo ? 'bg-success' : 'bg-danger'">{{ item.activo ? 'Activo' : 'Desactivado'}}</span></td>
             <td class="text-center">
-              <button class="btn btn-sm btn-primary me-2" data-bs-toggle="modal" data-bs-target="#modalEditar" @click="editarTipo( item.id )">Editar</button>
-              <button class="btn btn-sm btn-danger" @click="borrarTipo( item.id )">Eliminar</button>
+              <div class="d-flex justify-content-center gap-2">
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalEditar" title="Editar" aria-label="Editar tipo" @click="editarTipo(item.id)">
+                  <i class="bi bi-pencil-square"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" title="Eliminar" aria-label="Eliminar tipo" @click="borrarTipo(item.id)">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -92,15 +100,18 @@ onMounted(async () => {
     </div>
   </div>
   <!-- Modal Crear -->
-  <div class="modal fade" id="modalCrear" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-      <div class="modal-content">
+  <div class="modal fade type-modal" id="modalCrear" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="tituloCrearTipo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content modal-tipo">
         <div class="modal-header">
-          <h1 class="modal-title fs-5" id="staticBackdropLabel">Crear Tipo</h1>
+          <div>
+            <h5 class="modal-title fw-bold" id="tituloCrearTipo">Crear tipo</h5>
+            <small class="text-muted">Registra la información general y el logotipo</small>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div class="col-md-12 mb-3 container-fluid p-4">
+          <div class="type-modal-layout container-fluid">
             <div class="row">
               <div class="col-md-6">
                 <div class="p-2">
@@ -110,58 +121,56 @@ onMounted(async () => {
                 <div class="p-2">
                   <label class="form-label">¿Activarlo?</label>
                   <div class="form-check">
-                    <input v-model="form.activo" class="form-check-input" type="radio" name="nuevo" :value="true">
+                    <input v-model="form.activo" class="form-check-input" type="radio" name="activoTipoCrear" :value="true">
                     <label  class="form-check-label">Sí</label>
                   </div>
                   <div class="form-check">
-                    <input v-model="form.activo" class="form-check-input" type="radio" name="nuevo" :value="false" checked>
+                    <input v-model="form.activo" class="form-check-input" type="radio" name="activoTipoCrear" :value="false" checked>
                     <label  class="form-check-label">No</label>
                   </div>
                 </div>
                 <div class="form-floating p-2">
-                  <textarea v-model="form.descripcion" class="form-control" placeholder="Leave a comment here" id="floatingTextarea2" style="height: 100px"></textarea>
-                  <label  for="floatingTextarea2">Descripción del producto</label>
+                  <textarea id="descripcionTipoCrear" v-model="form.descripcion" class="form-control" placeholder="Descripción del tipo" style="height: 120px"></textarea>
+                  <label for="descripcionTipoCrear">Descripción del tipo</label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="type-image-zone">
+                  <img v-if="previews.length" :src="previews[0]" class="type-image-preview" alt="Vista previa del logotipo">
+                  <div v-else class="type-image-placeholder">
+                    <i class="bi bi-image"></i>
+                    <span>Vista previa del logotipo</span>
+                  </div>
                 </div>
                 <div class="p-2">
                   <label class="form-label">Logo del tipo</label>
                   <input type="file" class="form-control" accept="image/*" @change="handleFiles">
                 </div>
               </div>
-              <div class="col-md-6">
-                <div class="p-2 text-center">
-                  <img class="img-fluid rounded shadow-sm" style="max-height: 250px;">
-                </div>
-                <div id="carouselExample" class="carousel slide p-2">
-                  <div class="carousel-inner">
-                    <div class="carousel-item active">
-                      <div class="p-2 text-center">
-                        <img v-for="(img, i) in previews" :key="i" :src="img" class="img-fluid rounded shadow-sm m-1" style="max-height: 220px;">
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-          <button type="button" class="btn btn-success" @click="guardarTipo">Guardar</button>
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" @click="guardarTipo">Crear tipo</button>
         </div>
       </div>
     </div>
   </div>
   <!-- Modal Editar -->
-  <div class="modal fade" id="modalEditar" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-      <div class="modal-content">
+  <div class="modal fade type-modal" id="modalEditar" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="tituloEditarTipo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content modal-tipo">
         <div class="modal-header">
-          <h1 class="modal-title fs-5" id="staticBackdropLabel">Editar Tipo</h1>
+          <div>
+            <h5 class="modal-title fw-bold" id="tituloEditarTipo">Editar tipo</h5>
+            <small class="text-muted">Actualiza la información general y el logotipo</small>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           <input class="form-control" style="display: none;" type="text" v-model="form.idEditar">
         </div>
         <div class="modal-body">
-          <div class="col-md-12 mb-3 container-fluid p-4">
+          <div class="type-modal-layout container-fluid">
             <div class="row">
               <div class="col-md-6">
                 <div class="p-2">
@@ -171,45 +180,123 @@ onMounted(async () => {
                 <div class="p-2">
                   <label class="form-label">¿Activarlo?</label>
                   <div class="form-check">
-                    <input v-model="form.activoEditar" class="form-check-input" type="radio" name="nuevo" :value="true">
+                    <input v-model="form.activoEditar" class="form-check-input" type="radio" name="activoTipoEditar" :value="true">
                     <label  class="form-check-label">Sí</label>
                   </div>
                   <div class="form-check">
-                    <input v-model="form.activoEditar" class="form-check-input" type="radio" name="nuevo" :value="false" checked>
+                    <input v-model="form.activoEditar" class="form-check-input" type="radio" name="activoTipoEditar" :value="false" checked>
                     <label  class="form-check-label">No</label>
                   </div>
                 </div>
                 <div class="form-floating p-2">
-                  <textarea v-model="form.descripcionEditar" class="form-control" placeholder="Leave a comment here" id="floatingTextarea2" style="height: 100px"></textarea>
-                  <label  for="floatingTextarea2">Descripción del producto</label>
+                  <textarea id="descripcionTipoEditar" v-model="form.descripcionEditar" class="form-control" placeholder="Descripción del tipo" style="height: 120px"></textarea>
+                  <label for="descripcionTipoEditar">Descripción del tipo</label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="type-image-zone">
+                  <img v-if="previews.length" :src="previews[0]" class="type-image-preview" alt="Vista previa del logotipo">
+                  <div v-else class="type-image-placeholder">
+                    <i class="bi bi-image"></i>
+                    <span>Tipo sin logotipo</span>
+                  </div>
                 </div>
                 <div class="p-2">
                   <label class="form-label">Logo del tipo</label>
                   <input type="file" class="form-control" accept="image/*" @change="handleFiles">
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="p-2 text-center">
-                  <img class="img-fluid rounded shadow-sm" style="max-height: 250px;">
-                </div>
-                <div id="carouselExample" class="carousel slide p-2">
-                  <div class="carousel-inner">
-                    <div class="carousel-item active">
-                      <div class="p-2 text-center">
-                        <img v-for="(img, i) in previews" :key="i" :src="img" class="img-fluid rounded shadow-sm m-1" style="max-height: 220px;">
-                      </div>
-                    </div>
-                  </div>
+                  <div class="form-text">Selecciona un archivo únicamente si deseas reemplazar el logotipo actual.</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-          <button type="button" class="btn btn-success" @click="capturarTipo()">Guardar</button>
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" @click="capturarTipo()">Guardar cambios</button>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.type-table-image,
+.type-table-image-placeholder {
+  width: 50px;
+  height: 50px;
+  border-radius: .5rem;
+}
+.type-table-image {
+  display: block;
+  object-fit: contain;
+  background: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color);
+}
+.type-table-image-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-secondary-color);
+  background: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color);
+}
+.type-modal .modal-body {
+  max-height: 72vh;
+  padding: 1rem;
+}
+.type-modal .modal-header,
+.type-modal .modal-footer {
+  border-color: var(--bs-border-color);
+}
+.type-modal-layout {
+  padding: 1rem;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: .75rem;
+}
+.type-modal .form-label {
+  margin-bottom: .4rem;
+  font-weight: 600;
+}
+.type-image-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 260px;
+  margin: .5rem;
+  padding: .75rem;
+  overflow: hidden;
+  background: var(--bs-tertiary-bg);
+  border: 1px dashed var(--bs-border-color);
+  border-radius: .75rem;
+}
+.type-image-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: .5rem;
+}
+.type-image-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  color: var(--bs-secondary-color);
+  text-align: center;
+}
+.type-image-placeholder .bi {
+  font-size: 2rem;
+}
+.type-modal .modal-footer .btn {
+  min-width: 110px;
+}
+@media (max-width: 576px) {
+  .type-modal .modal-dialog { margin: .5rem; }
+  .type-modal-layout { padding: .75rem; }
+  .type-image-zone { height: 210px; }
+  .type-modal .modal-footer { flex-wrap: nowrap; }
+  .type-modal .modal-footer .btn { min-width: 0; flex: 1; }
+}
+</style>

@@ -3,17 +3,20 @@ import {
   IsNumber,
   IsBoolean,
   IsArray,
-  ValidateNested
-  ,IsOptional
-  ,IsInt
-  ,Min
-  ,Max
-  ,ArrayNotEmpty
-  ,MaxLength
-  ,IsDateString
-  ,IsIn
+  ValidateNested,
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+  ArrayNotEmpty,
+  MaxLength,
+  IsDateString,
+  IsIn,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+
+const trimOptionalString = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() || null : value;
 
 class ClienteDto {
   @IsString()
@@ -92,9 +95,11 @@ class TotalesDto {
 }
 
 export class CreateFacturaDto {
+  @IsOptional()
+  @Transform(trimOptionalString)
   @IsString()
-  @MaxLength(255)
-  folio!: string;
+  @MaxLength(100)
+  folioEspecial?: string | null;
 
   @IsDateString()
   @IsOptional()

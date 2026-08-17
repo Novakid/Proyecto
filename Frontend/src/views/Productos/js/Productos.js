@@ -1,6 +1,8 @@
 import { ref } from 'vue';
 import { getApiAssetUrl } from '../../../services/api';
 import { useProductos } from '../../../services/productos/useProductos';
+import Swal from 'sweetalert2';
+import { Modal } from 'bootstrap';
 const tiposSeleccionados = ref([]);
 const imagenes = ref([]);
 const previews = ref([]);
@@ -105,8 +107,10 @@ export function useProductoForm(tipos) {
                 formData.append('imagenes', file);
             });
             await actualizar(formEditar.value.id, formData);
+            await Swal.fire('Producto actualizado correctamente', imagenes.value.length ? 'Imagen guardada correctamente' : '', 'success');
+            Modal.getInstance(document.getElementById('editar'))?.hide();
         } catch (error) {
-            console.error(error);
+            await Swal.fire('No fue posible actualizar el producto', Array.isArray(error.response?.data?.message) ? error.response.data.message.join('\n') : error.response?.data?.message || 'Error de conexión', 'error');
         }
     };
     const guardarProducto = async () => {
@@ -129,6 +133,8 @@ export function useProductoForm(tipos) {
                 formData.append('tipos', String(id));
             });
             await crear(formData);
+            await Swal.fire('Producto creado correctamente', imagenes.value.length ? 'Imagen guardada correctamente' : '', 'success');
+            Modal.getInstance(document.getElementById('creacion'))?.hide();
             formCrear.value = {
                 codigo: '',
                 activo: false,
@@ -145,7 +151,7 @@ export function useProductoForm(tipos) {
             imagenes.value = [];
             previews.value = [];
         } catch (error) {
-            console.error(error);
+            await Swal.fire('No fue posible crear el producto', Array.isArray(error.response?.data?.message) ? error.response.data.message.join('\n') : error.response?.data?.message || 'Error de conexión', 'error');
         }
     };
     const agregarTipo = (event) => {

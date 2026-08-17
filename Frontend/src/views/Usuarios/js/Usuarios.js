@@ -13,7 +13,7 @@ const formCrear = ref({
     poblacion: '',
     cp: '',
     estatus: 1,
-    identidad: 'Cliente',
+    identidad: 'Cliente', tendraAcceso: false, email: '', password: '', passwordConfirm: '', roles: [],
 });
 const detalle = ref({
     Nombre: '',
@@ -50,11 +50,16 @@ export function useUsuarioForm() {
             poblacion: '',
             cp: '',
             estatus: 1,
-            identidad: 'Cliente',
+            identidad: 'Cliente', tendraAcceso: false, email: '', password: '', passwordConfirm: '', roles: [],
         };
     };
     const guardarUsuario = async () => {
-        await crear(formCrear.value);
+        if (formCrear.value.tendraAcceso && formCrear.value.password !== formCrear.value.passwordConfirm) throw new Error('Las contraseñas no coinciden');
+        const payload = { ...formCrear.value };
+        delete payload.tendraAcceso; delete payload.passwordConfirm;
+        if (payload.roles) payload.roles = payload.roles.filter((role) => payload.identidad === 'Cliente' ? role === 'cliente' : role !== 'cliente');
+        if (!formCrear.value.tendraAcceso) { delete payload.email; delete payload.password; delete payload.roles; }
+        await crear(payload);
         limpiarFormulario();
     };
     const cargarUsuario = async(id) => {
@@ -73,14 +78,16 @@ export function useUsuarioForm() {
             cp: response.data.cp ?? '',
             descuento: Number(response.data.descuento ?? 0),
             estatus: Number(response.data.estatus ?? 1),
-            identidad: response.data.identidad ?? 'Cliente',
+            identidad: response.data.identidad ?? 'Cliente', email: response.data.email ?? '', password: '', roles: (response.data.acceso?.roles || []).filter((role) => ['dev', 'facturista', 'vendedor', 'almacen', 'cliente'].includes(role)),
         };
     };
     const actualizarUsuario = async() => {
         if (!usuarioSeleccionado.value?.id) return;
+        const payload = { ...formEditar.value, password: formEditar.value.password || undefined };
+        payload.roles = (payload.roles || []).filter((role) => payload.identidad === 'Cliente' ? role === 'cliente' : role !== 'cliente');
         await actualizar(
             usuarioSeleccionado.value.id,
-            { ...formEditar.value }
+            payload
         );
 
         formEditar.value = {};

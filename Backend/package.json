@@ -23,7 +23,10 @@
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/config/typeorm.datasource.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/config/typeorm.datasource.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d src/config/typeorm.datasource.ts"
-    ,"admin:bootstrap": "ts-node src/scripts/bootstrap-admin.ts"
+    ,"admin:bootstrap": "ts-node src/scripts/bootstrap-admin.ts",
+    "test-users:seed": "ts-node src/scripts/seed-rbac-test-users.ts",
+    "test-users:seed-extended": "ts-node src/scripts/seed-rbac-extended-test-users.ts",
+    "user-role:assign": "ts-node src/scripts/assign-user-role.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

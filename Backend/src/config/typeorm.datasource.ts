@@ -13,6 +13,13 @@ import { HardenInvoiceMoneyAndDate1785888000000 } from '../migrations/1785888000
 import { ClientePrecioEspecial } from '../modules/usuarios/precios-especiales/entities/cliente-precio-especial.entity';
 import { HardenClientePreciosEspeciales1785974400000 } from '../migrations/1785974400000-HardenClientePreciosEspeciales';
 import { AddFacturaPrecioOriginal1786147200000 } from '../migrations/1786147200000-AddFacturaPrecioOriginal';
+import { Rol } from '../modules/auth/entities/rol.entity';
+import { Permiso } from '../modules/auth/entities/permiso.entity';
+import { AddRoleBasedPermissions1786233600000 } from '../migrations/1786233600000-AddRoleBasedPermissions';
+import { ClienteDatos } from '../modules/usuarios/entities/cliente-datos.entity';
+import { CreateOrHardenClientesDatos1786665600000 } from '../migrations/1786665600000-CreateOrHardenClientesDatos';
+import { AddCatalogoAgregarStockPermission1786838400000 } from '../migrations/1786838400000-AddCatalogoAgregarStockPermission';
+import { AddAutomaticInvoiceFolios1787097600000 } from '../migrations/1787097600000-AddAutomaticInvoiceFolios';
 
 export default new DataSource({
   type: 'mysql',
@@ -30,6 +37,9 @@ export default new DataSource({
     NotaPago,
     HistorialCompra,
     ClientePrecioEspecial,
+    Rol,
+    Permiso,
+    ClienteDatos,
   ],
   migrations: [
     InitialSchema1700000000000,
@@ -37,6 +47,10 @@ export default new DataSource({
     HardenInvoiceMoneyAndDate1785888000000,
     HardenClientePreciosEspeciales1785974400000,
     AddFacturaPrecioOriginal1786147200000,
+    AddRoleBasedPermissions1786233600000,
+    CreateOrHardenClientesDatos1786665600000,
+    AddCatalogoAgregarStockPermission1786838400000,
+    AddAutomaticInvoiceFolios1787097600000,
   ],
   synchronize: false,
 });

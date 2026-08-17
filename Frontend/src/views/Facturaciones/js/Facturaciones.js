@@ -18,7 +18,8 @@ const mensajeFactura = ref('');
 const imagenProducto = ref('');
 const productoSeleccionado = ref(null);
 const form = ref({
-    folio: '',
+    folioCliente: '',
+    folioEspecial: '',
     fecha: '',
     vendedor: '',
     almacen: '',
@@ -77,6 +78,8 @@ export function useFacturasForm () {
     }
     const abrirModal = async () => {
         editingId.value = null;
+        form.value.folioCliente = '';
+        form.value.folioEspecial = '';
         productosFactura.value = [];
         mensajeFactura.value = '';
         await cargarProductos({ limit: 100, page: 1 });
@@ -148,7 +151,7 @@ export function useFacturasForm () {
             };
         });
         const factura = {
-            folio: form.value.folio,
+            folioEspecial: form.value.folioEspecial?.trim() || null,
             fecha: form.value.fecha,
             vendedor: form.value.vendedor,
             almacen: form.value.almacen,
@@ -173,16 +176,19 @@ export function useFacturasForm () {
             total: total.value
             }
         };
-        await guardar(factura, editingId.value);
+        const response = await guardar(factura, editingId.value);
+        form.value.folioCliente = response.data.folio_cliente;
+        form.value.folioEspecial = response.data.folio_especial || '';
         editingId.value = null;
         await cargarFacturas();
-        return factura;
+        return response.data;
     };
     const cargarEdicion = async (factura) => {
         await cargarProductos({ limit: 100, page: 1 });
         editingId.value = factura.id;
         form.value = {
-            folio: factura.folio_cliente || '', fecha: String(factura.fecha_emision || '').slice(0, 10),
+            folioCliente: factura.folio_cliente || '', folioEspecial: factura.folio_especial || '',
+            fecha: String(factura.fecha_emision || '').slice(0, 10),
             vendedor: factura.vendedor || '', almacen: factura.almacen || '',
             cliente: { id: factura.id_cliente || null, nombre: factura.razon_social || '', rfc: factura.rfc || '',
                 direccion: factura.direccion || '', colonia: factura.colonia || '', poblacion: factura.poblacion || '',
@@ -217,6 +223,7 @@ export function useFacturasForm () {
         doc.setFontSize(10)
         doc.text(`Folio: ${factura.folio_cliente}`,150,12)
         doc.text(`Fecha: ${formatearFecha(factura.fecha_emision)}`,150,18)
+        if (factura.folio_especial) doc.text(`Folio especial: ${factura.folio_especial}`,150,24)
         doc.setFillColor(245,245,245)
         doc.roundedRect(10,35,190,32,2,2,"F")
         doc.setTextColor(55)

@@ -1,7 +1,8 @@
 import api from './api';
 
 export const login = async (credentials) => {
-  const { data } = await api.post('/auth/login', credentials);
+  const channel = window.electronAPI?.isElectron ? 'electron' : 'web';
+  const { data } = await api.post('/auth/login', { ...credentials, channel });
   localStorage.setItem('access_token', data.accessToken);
   localStorage.setItem('current_user', JSON.stringify(data.user));
   return data.user;

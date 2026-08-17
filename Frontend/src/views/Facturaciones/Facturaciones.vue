@@ -4,9 +4,12 @@ import { Dropdown, Modal } from 'bootstrap';
 import '../../assets/style/facturacion/facturacion.css';
 import { useFacturas } from '../../services/facturacion/useFacturas';
 import { useFacturasForm } from './js/Facturaciones';
+import { useAuthorizationStore } from '../../stores/authorization';
 const { facturas, pagination, filtros, errorFacturas, cargarFacturas, aplicarFiltros, limpiarFiltros, obtener, cancelar } = useFacturas();
 const { formatearFecha, busqueda, productoSeleccionado, form, abrirModal, productosFiltrados, productosFactura, agregarProducto, subtotalBruto, descuentoTotal, iva, total, formatoMoneda, construirFactura, generarPDF, previewEtiquetas, buscarVendedores, buscarClientes, seleccionarCliente, clientesFiltrados, vendedoresFiltrados, mensajeFactura, imagenProducto, editingId, cargarEdicion } = useFacturasForm();
 const detalleFactura = ref(null);
+const authorization = useAuthorizationStore();
+const can = (permission) => authorization.can(permission);
 const mensajeAccion = ref('');
 const facturaEtiquetas = ref(null);
 const procesandoEtiquetas = ref(false);
@@ -98,7 +101,7 @@ const facturasPorTimbrar = computed(() => {
       </div>
       <div class="card mt-3 shadow-sm border-0">
           <div class="card-body">
-              <button @click="abrirModal" class="btn btn-primary btn-md" data-bs-toggle="modal" data-bs-target="#modalCrear">Crear factura</button>
+              <button v-if="can('facturacion.crear')" @click="abrirModal" class="btn btn-primary btn-md" data-bs-toggle="modal" data-bs-target="#modalCrear">Crear factura</button>
           </div>
           <div class="card-body">
               <div class="row g-2 align-items-end">
@@ -158,7 +161,10 @@ const facturasPorTimbrar = computed(() => {
               </thead>
               <tbody>
                   <tr v-for="item in facturas" :key="item.id">
-                      <td>{{ item.folio_cliente }}</td>
+                      <td>
+                        <span class="d-block fw-semibold">{{ item.folio_cliente }}</span>
+                        <small v-if="item.folio_especial" class="text-muted">Especial: {{ item.folio_especial }}</small>
+                      </td>
                       <td>{{ item.razon_social }}</td>
                       <td>{{ item.fecha_emision }}</td>
                       <td>{{ item.fecha_entrega }}</td>
@@ -167,13 +173,13 @@ const facturasPorTimbrar = computed(() => {
                       <td>{{ item.fecha_cancelado ? 'Cancelada' : (Number(item.timbrada ?? 0) === 1 ? 'Timbrada' : 'Pendiente') }}</td>
                       <td class="text-center">
                           <div class="d-flex justify-content-center gap-2">
-                              <button class="btn btn-sm btn-outline-success" title="Timbrar">
+                              <button v-if="can('facturacion.timbrar')" class="btn btn-sm btn-outline-success" title="Timbrar">
                               <i class="bi bi-bell"></i>
                               </button>
-                              <button @click="pdfCompleto(item)" class="btn btn-sm btn-outline-danger" title="Ver PDF">
+                              <button v-if="can('facturacion.imprimir')" @click="pdfCompleto(item)" class="btn btn-sm btn-outline-danger" title="Ver PDF">
                                 <i class="bi bi-file-earmark-pdf"></i>
                               </button>
-                              <button @click="abrirConfiguracionEtiquetas(item)" class="btn btn-sm btn-outline-primary" title="Imprimir etiquetas">
+                              <button v-if="can('facturacion.imprimir')" @click="abrirConfiguracionEtiquetas(item)" class="btn btn-sm btn-outline-primary" title="Imprimir etiquetas">
                                 <i class="bi bi-upc-scan"></i>
                               </button>
                               <div class="dropdown">
@@ -182,12 +188,12 @@ const facturasPorTimbrar = computed(() => {
                                   </button>
                                   <ul class="dropdown-menu dropdown-menu-end">
                                       <li>
-                                      <a @click.prevent="editarFactura(item)" :class="{ disabled: item.fecha_cancelado }" class="dropdown-item" href="#">
+                                      <a v-if="can('facturacion.editar')" @click.prevent="editarFactura(item)" :class="{ disabled: item.fecha_cancelado }" class="dropdown-item" href="#">
                                           <i class="bi bi-pencil me-2"></i> Editar
                                       </a>
                                       </li>
                                       <li>
-                                      <a @click.prevent="cancelarFactura(item)" :class="{ disabled: item.fecha_cancelado }" class="dropdown-item text-danger" href="#">
+                                      <a v-if="can('facturacion.cancelar')" @click.prevent="cancelarFactura(item)" :class="{ disabled: item.fecha_cancelado }" class="dropdown-item text-danger" href="#">
                                           <i class="bi bi-x-circle me-2"></i> Cancelar
                                       </a>
                                       </li>
@@ -213,7 +219,7 @@ const facturasPorTimbrar = computed(() => {
   </div>
     <!-- MODAL CREACIÓN FACTURA -->
   <div class="modal fade" id="modalCrear" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered modal-xl modal-editado">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable modal-editado">
       <div class="modal-content">
         <!-- HEADER -->
         <div class="modal-header">
@@ -232,14 +238,19 @@ const facturasPorTimbrar = computed(() => {
                   <div class="card-body">
                     <div class="row g-3">
                       <div class="col-md-3">
-                        <label>Folio</label>
-                        <input type="text" class="form-control" v-model="form.folio">
+                        <label for="folioClienteFactura">Folio</label>
+                        <input id="folioClienteFactura" type="text" class="form-control" readonly :value="form.folioCliente || 'Se generará al guardar'">
+                        <div class="form-text">Asignado automáticamente por el sistema.</div>
                       </div>
                       <div class="col-md-3">
+                        <label for="folioEspecialFactura">Folio especial <span class="text-muted">(opcional)</span></label>
+                        <input id="folioEspecialFactura" v-model="form.folioEspecial" type="text" maxlength="100" class="form-control" placeholder="Ingrese un folio especial (opcional)">
+                      </div>
+                      <div class="col-md-2">
                         <label>Fecha</label>
                         <input type="date" class="form-control" v-model="form.fecha">
                       </div>
-                      <div class="col-md-3">
+                      <div class="col-md-2">
                         <label>Vendedor</label>
               <input
                   class="form-control"
@@ -257,7 +268,7 @@ const facturasPorTimbrar = computed(() => {
                   />
               </datalist>
                       </div>
-                      <div class="col-md-3">
+                      <div class="col-md-2">
                         <label>Almacén</label>
                         <input type="text" class="form-control" v-model="form.almacen">
                       </div>
@@ -406,6 +417,7 @@ const facturasPorTimbrar = computed(() => {
       <div v-if="detalleFactura" class="modal-body">
         <div class="row mb-3">
           <div class="col"><strong>Folio:</strong> {{ detalleFactura.folio_cliente }}</div>
+          <div class="col"><strong>Folio especial:</strong> {{ detalleFactura.folio_especial || '—' }}</div>
           <div class="col"><strong>Fecha:</strong> {{ formatearFecha(detalleFactura.fecha_emision) }}</div>
           <div class="col"><strong>Vendedor:</strong> {{ detalleFactura.vendedor }}</div>
           <div class="col"><strong>Almacén:</strong> {{ detalleFactura.almacen }}</div>
@@ -421,7 +433,7 @@ const facturasPorTimbrar = computed(() => {
     </div></div>
   </div>
   <div class="modal fade" id="modalEtiquetas" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Configurar etiquetas</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <div v-if="errorEtiquetas" class="alert alert-danger">{{ errorEtiquetas }}</div>

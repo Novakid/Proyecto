@@ -9,10 +9,16 @@ import { Producto } from '../productos/entities/producto.entity';
 import { ClientePrecioEspecial } from './precios-especiales/entities/cliente-precio-especial.entity';
 import { PreciosEspecialesController } from './precios-especiales/precios-especiales.controller';
 import { PreciosEspecialesService } from './precios-especiales/precios-especiales.service';
+import { ClienteDatos } from './entities/cliente-datos.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Usuario, Producto, ClientePrecioEspecial]),
+    TypeOrmModule.forFeature([
+      Usuario,
+      Producto,
+      ClientePrecioEspecial,
+      ClienteDatos,
+    ]),
     AuthModule,
   ],
   controllers: [UsuarioController, PreciosEspecialesController],

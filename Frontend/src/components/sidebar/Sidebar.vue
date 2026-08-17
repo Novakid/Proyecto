@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { logout } from '../../services/auth';
 import { useTheme } from '../../composables/useTheme';
+import { useAuthorizationStore } from '../../stores/authorization';
 
 const collapsed = ref(false);
 const router = useRouter();
@@ -16,6 +17,8 @@ const readCurrentUser = () => {
 const currentUser = ref(readCurrentUser());
 const userName = computed(() => currentUser.value?.nombre || 'Usuario');
 const { isDark, toggleTheme } = useTheme();
+const authorization = useAuthorizationStore();
+const can = (permission) => authorization.can(permission);
 
 function toggleSidebar() {
   collapsed.value = !collapsed.value;
@@ -26,7 +29,7 @@ function syncCurrentUser(event) {
 }
 
 async function closeSession() {
-  logout();
+  authorization.signOut();
   currentUser.value = null;
   await router.replace('/login');
 }
@@ -66,19 +69,19 @@ onUnmounted(() => window.removeEventListener('storage', syncCurrentUser));
     </div>
 
     <nav>
-      <router-link to="/" class="nav-link">
+      <router-link v-if="can('dashboard.ver')" to="/" class="nav-link">
         <i class="bi bi-house fs-5"></i>
         <span v-if="!collapsed">Dashboard</span>
       </router-link>
-      <router-link to="/Productos" class="nav-link">
+      <router-link v-if="can('catalogo.ver')" to="/Productos" class="nav-link">
         <i class="bi bi-archive fs-5"></i>
         <span v-if="!collapsed"> Productos</span>
       </router-link>
-      <router-link to="/Facturaciones" class="nav-link">
+      <router-link v-if="can('facturacion.ver')" to="/Facturaciones" class="nav-link">
         <i class="bi bi-clipboard fs-5"></i>
         <span v-if="!collapsed"> Facturaciones</span>
       </router-link>
-      <router-link to="/Usuarios" class="nav-link">
+      <router-link v-if="can('usuarios.ver')" to="/Usuarios" class="nav-link">
         <i class="fa fa-user-o" aria-hidden="true"></i>
         <span v-if="!collapsed"> Usuarios</span>
       </router-link>

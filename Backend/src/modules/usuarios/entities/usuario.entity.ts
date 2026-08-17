@@ -1,6 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  OneToOne,
+} from 'typeorm';
 import { UserRole } from '../../auth/auth.types';
 import { ClientePrecioEspecial } from '../precios-especiales/entities/cliente-precio-especial.entity';
+import { ClienteDatos } from './cliente-datos.entity';
 
 @Entity('usuarios')
 export class Usuario {
@@ -63,6 +70,36 @@ export class Usuario {
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.EMPLOYEE })
   role!: UserRole;
+
+  @Column({
+    name: 'tipo_usuario',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  tipoUsuario!: string | null;
+
+  @Column({
+    name: 'canal_acceso',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  canalAcceso!: string | null;
+
+  @Column({ name: 'estatus_acceso', type: 'int', nullable: true })
+  estatusAcceso!: number | null;
+
+  @Column({
+    name: 'authz_version',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  authzVersion!: string | null;
+
+  @OneToOne(() => ClienteDatos, (datos) => datos.usuario)
+  datosFiscales!: ClienteDatos | null;
 
   @OneToMany(() => ClientePrecioEspecial, (precio) => precio.cliente)
   preciosEspeciales!: ClientePrecioEspecial[];

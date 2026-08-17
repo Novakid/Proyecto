@@ -1,45 +1,43 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  OneToMany,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { HistorialCompra } from './historial-compra.entity';
 
 @Entity('notas_de_pago')
 export class NotaPago {
   @PrimaryGeneratedColumn()
   id!: number;
-  
-@Column({ nullable: true })
-cfdi!: string;
-
-@Column({ nullable: true })
-uuid!: string;
-
-@Column({ nullable: true })
-tfd!: string;
-
-@Column({ nullable: true })
-xml!: string;
-
-@Column({ nullable: true })
-metodo_pago!: string;
-
-@Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-fecha_emision!: Date;
-
-@Column({ type: 'timestamp', nullable: true })
-fecha_timbrado!: Date;
-
-@Column({ name: 'timbrado', type: 'int', nullable: true, default: 0 })
-timbrada!: number;
-
-@Column({ type: 'timestamp', nullable: true })
-fecha_cancelado!: Date;
 
   @Column({ nullable: true })
+  cfdi!: string;
+
+  @Column({ nullable: true })
+  uuid!: string;
+
+  @Column({ nullable: true })
+  tfd!: string;
+
+  @Column({ nullable: true })
+  xml!: string;
+
+  @Column({ nullable: true })
+  metodo_pago!: string;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  fecha_emision!: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  fecha_timbrado!: Date;
+
+  @Column({ name: 'timbrado', type: 'int', nullable: true, default: 0 })
+  timbrada!: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  fecha_cancelado!: Date;
+
+  @Column({ type: 'varchar', length: 100, nullable: false })
   folio_cliente!: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  folio_especial!: string | null;
 
   @Column({ type: 'int', nullable: true })
   id_cliente!: number | null;
@@ -83,8 +81,11 @@ fecha_cancelado!: Date;
   @Column({ nullable: true })
   credito!: number;
 
+  @Column({ name: 'creado_por_usuario_id', type: 'int', nullable: true })
+  creadoPorUsuarioId!: number | null;
+
   @OneToMany(() => HistorialCompra, (detalle) => detalle.factura, {
-    cascade: true
+    cascade: true,
   })
   detalles!: HistorialCompra[];
 }

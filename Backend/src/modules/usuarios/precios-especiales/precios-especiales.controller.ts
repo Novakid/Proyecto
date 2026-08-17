@@ -22,14 +22,16 @@ import {
   UpdatePrecioEspecialDto,
 } from './dto/precio-especial.dto';
 import { PreciosEspecialesService } from './precios-especiales.service';
+import { PermissionsGuard } from '../../auth/permissions.guard';
+import { RequirePermissions } from '../../auth/permissions.decorator';
 
 @Controller('usuarios/:usuarioId/precios-especiales')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PreciosEspecialesController {
   constructor(private readonly service: PreciosEspecialesService) {}
 
   @Get()
+  @RequirePermissions('usuarios.detalles')
   findAll(
     @Param('usuarioId', ParseIntPipe) usuarioId: number,
     @Query() query: FilterPreciosEspecialesDto,
@@ -38,6 +40,7 @@ export class PreciosEspecialesController {
   }
 
   @Get('productos-disponibles')
+  @RequirePermissions('usuarios.editar')
   productosDisponibles(
     @Param('usuarioId', ParseIntPipe) usuarioId: number,
     @Query() query: ProductosDisponiblesDto,
@@ -46,6 +49,7 @@ export class PreciosEspecialesController {
   }
 
   @Post()
+  @RequirePermissions('usuarios.editar')
   create(
     @Param('usuarioId', ParseIntPipe) usuarioId: number,
     @Req() request: AuthenticatedRequest,
@@ -55,6 +59,7 @@ export class PreciosEspecialesController {
   }
 
   @Patch(':precioId')
+  @RequirePermissions('usuarios.editar')
   update(
     @Param('usuarioId', ParseIntPipe) usuarioId: number,
     @Param('precioId', ParseIntPipe) precioId: number,

@@ -22,14 +22,16 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/auth.types';
 import { UploadedFilesCleanupInterceptor } from '../../common/uploads/uploaded-files-cleanup.interceptor';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermissions } from '../auth/permissions.decorator';
 
 @Controller('tipos')
 export class TiposController {
     constructor(private readonly service: TiposService) {}
 
     @Post()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @RequirePermissions('catalogo.crear')
     @UseInterceptors(
     FilesInterceptor('imagenes', 10, imageUploadOptions('tipos')),
     UploadedFilesCleanupInterceptor,
@@ -49,8 +51,8 @@ export class TiposController {
         return this.service.findOne(id);
     }
     @Patch(':id')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @RequirePermissions('catalogo.editar')
     @UseInterceptors(
     FilesInterceptor('imagenes', 10, imageUploadOptions('tipos')),
     UploadedFilesCleanupInterceptor,
@@ -63,8 +65,8 @@ export class TiposController {
         return this.service.update(id, dto, validateUploadedImages(files));
     }
     @Delete(':id')
-        @UseGuards(JwtAuthGuard, RolesGuard)
-        @Roles(UserRole.ADMIN)
+        @UseGuards(JwtAuthGuard, PermissionsGuard)
+        @RequirePermissions('catalogo.eliminar')
         remove(@Param('id', ParseIntPipe) id: number) {
         return this.service.remove(id);
     }

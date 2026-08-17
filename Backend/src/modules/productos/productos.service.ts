@@ -105,7 +105,7 @@ export class ProductosService {
     return producto;
   }
 
-  async update(id: number, data: UpdateProductoDto, files?: Express.Multer.File[]) {
+  async update(id: number, data: UpdateProductoDto, files?: Express.Multer.File[], canManageInventory = false) {
     let previousImageUrls: string[] = [];
     try {
       await this.dataSource.transaction(async (manager) => {
@@ -113,6 +113,7 @@ export class ProductosService {
         const imagenRepo = manager.getRepository(ProductoImagen);
         const producto = await productoRepo.findOne({ where: { id }, relations: ['imagenes', 'tipos'] });
         if (!producto) throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+        if (!canManageInventory && (data.precio !== undefined || data.stock !== undefined || data.existencia !== undefined)) throw new BadRequestException('No tiene permiso para modificar precio, stock o existencia');
         if (data.tipos !== undefined) producto.tipos = await this.resolveTipos(data.tipos, manager.getRepository(Tipo));
         const scalarData = { ...data };
         delete scalarData.tipos;
@@ -137,13 +138,33 @@ export class ProductosService {
 
   async remove(id: number) {
     const producto = await this.findOne(id);
-    for (const img of producto.imagenes) {
-      removeFileIfExists(getStoredUploadPath(img.url));
-    }
-    await this.imagenRepo.remove(producto.imagenes);
-    await this.repo.remove(producto);
+    if (!producto.activo) throw new BadRequestException('El producto ya está desactivado');
+    producto.activo = false;
+    await this.repo.save(producto);
     return {
-      message: 'Producto eliminado correctamente',
+      message: 'Producto desactivado correctamente',
     };
+  }
+
+  async reactivar(id: number) {
+    const producto = await this.findOne(id);
+    if (producto.activo) throw new BadRequestException('El producto ya está activo');
+    producto.activo = true;
+    await this.repo.save(producto);
+    return { message: 'Producto reactivado correctamente' };
+  }
+
+  async agregarStock(id: number, cantidad: number) {
+    return this.dataSource.transaction(async (manager) => {
+      const rows = await manager.query('SELECT id,codigo,stock,existencia,activo FROM catalogo WHERE id=? FOR UPDATE', [id]) as Array<{id:number;codigo:string;stock:number;existencia:number;activo:number}>;
+      const producto = rows[0];
+      if (!producto) throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+      if (!producto.activo) throw new BadRequestException('No se puede agregar stock a un producto inactivo');
+      const stockAnterior = Number(producto.stock ?? 0);
+      const existenciaAnterior = Number(producto.existencia ?? 0);
+      if (stockAnterior + cantidad > 2147483647 || existenciaAnterior + cantidad > 2147483647) throw new BadRequestException('La cantidad excede la capacidad del inventario');
+      await manager.query('UPDATE catalogo SET stock=COALESCE(stock,0)+?, existencia=COALESCE(existencia,0)+? WHERE id=?', [cantidad, cantidad, id]);
+      return { success: true, message: 'Stock actualizado correctamente', data: { productoId: id, stockAnterior, existenciaAnterior, cantidadAgregada: cantidad, stockNuevo: stockAnterior + cantidad, existenciaNueva: existenciaAnterior + cantidad } };
+    });
   }
 }

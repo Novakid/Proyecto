@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { JwtService } from '@nestjs/jwt';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Usuario } from '../usuarios/entities/usuario.entity';
+import { PermissionsService } from '../auth/permissions.service';
 
 describe('ProductosController', () => {
   let controller: ProductosController;
@@ -19,6 +20,7 @@ describe('ProductosController', () => {
         { provide: RolesGuard, useValue: { canActivate: () => true } },
         { provide: JwtService, useValue: { verifyAsync: jest.fn() } },
         { provide: getRepositoryToken(Usuario), useValue: {} },
+        { provide: PermissionsService, useValue: { resolve: jest.fn() } },
       ],
     }).compile();
 

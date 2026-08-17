@@ -98,6 +98,7 @@ export function useTipoForm() {
     }
     return {
         form,
+        previews,
         handleFiles,
         guardarTipo,
         borrarTipo,

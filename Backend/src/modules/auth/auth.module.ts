@@ -7,10 +7,14 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
+import { PermissionsService } from './permissions.service';
+import { PermissionsGuard } from './permissions.guard';
+import { Rol } from './entities/rol.entity';
+import { Permiso } from './entities/permiso.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Usuario]),
+    TypeOrmModule.forFeature([Usuario, Rol, Permiso]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -21,7 +25,7 @@ import { RolesGuard } from './roles.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, RolesGuard],
-  exports: [TypeOrmModule, JwtModule, JwtAuthGuard, RolesGuard],
+  providers: [AuthService, JwtAuthGuard, RolesGuard, PermissionsService, PermissionsGuard],
+  exports: [TypeOrmModule, JwtModule, JwtAuthGuard, RolesGuard, PermissionsService, PermissionsGuard],
 })
 export class AuthModule {}

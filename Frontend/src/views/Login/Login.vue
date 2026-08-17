@@ -2,21 +2,26 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { login } from '../../services/auth';
+import { useAuthorizationStore } from '../../stores/authorization';
 
 const router = useRouter();
 const email = ref('');
 const password = ref('');
 const error = ref('');
 const loading = ref(false);
+const authorization = useAuthorizationStore();
 
 const submit = async () => {
   error.value = '';
   loading.value = true;
   try {
     await login({ email: email.value, password: password.value });
-    await router.push('/');
+    const profile = await authorization.load(true);
+    if (window.electronAPI?.isElectron && !profile.canAccessElectron) throw new Error('Esta cuenta no puede ingresar a Electron');
+    const destination = authorization.can('dashboard.ver') ? '/' : authorization.can('catalogo.ver') ? '/Productos' : authorization.can('facturacion.ver') ? '/Facturaciones' : authorization.can('usuarios.ver') ? '/Usuarios' : '/forbidden';
+    await router.push(destination);
   } catch (requestError) {
-    error.value = requestError.response?.data?.message ?? 'No fue posible iniciar sesion';
+    error.value = requestError.response?.data?.message ?? requestError.message ?? 'No fue posible iniciar sesion';
   } finally {
     loading.value = false;
   }

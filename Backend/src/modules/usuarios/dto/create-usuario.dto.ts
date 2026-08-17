@@ -8,6 +8,9 @@ import {
   MaxLength,
   Min,
   MinLength,
+  IsEmail,
+  IsArray,
+  ArrayUnique,
 } from 'class-validator';
 export class CreateUsuarioDto {
   @Transform(({ value }: { value: unknown }) =>
@@ -70,4 +73,8 @@ export class CreateUsuarioDto {
   @IsOptional()
   @IsString()
   identidad!: string;
+
+  @IsOptional() @IsEmail() email?: string;
+  @IsOptional() @IsString() @MinLength(8) @MaxLength(128) password?: string;
+  @IsOptional() @IsArray() @ArrayUnique() @IsString({ each: true }) roles?: string[];
 }
