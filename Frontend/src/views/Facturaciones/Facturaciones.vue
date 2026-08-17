@@ -5,14 +5,16 @@ import '../../assets/style/facturacion/facturacion.css';
 import { useFacturas } from '../../services/facturacion/useFacturas';
 import { useFacturasForm } from './js/Facturaciones';
 import { useAuthorizationStore } from '../../stores/authorization';
-const { facturas, pagination, filtros, errorFacturas, cargarFacturas, aplicarFiltros, limpiarFiltros, obtener, cancelar } = useFacturas();
-const { formatearFecha, busqueda, productoSeleccionado, form, abrirModal, productosFiltrados, productosFactura, agregarProducto, subtotalBruto, descuentoTotal, iva, total, formatoMoneda, construirFactura, generarPDF, previewEtiquetas, buscarVendedores, buscarClientes, seleccionarCliente, clientesFiltrados, vendedoresFiltrados, mensajeFactura, imagenProducto, editingId, cargarEdicion } = useFacturasForm();
+import Swal from 'sweetalert2';
+const { facturas, pagination, filtros, errorFacturas, cargarFacturas, aplicarFiltros, limpiarFiltros, obtener, cancelar, timbrar } = useFacturas();
+const { formatearFecha, formatearFechaHora, busqueda, form, abrirModal, productosEncontrados, buscandoProductos, indiceProductoActivo, buscarProductos, teclaProducto, cerrarSugerenciasProductos, productosFactura, agregarProducto, subtotalBruto, descuentoTotal, iva, total, formatoMoneda, construirFactura, generarPDF, previewEtiquetas, buscarVendedores, buscarClientes, seleccionarClientePorNombre, clientesFiltrados, vendedoresFiltrados, mensajeFactura, imagenProducto, editingId, cargarEdicion, cargandoCliente, errorFiscalCliente, datosFiscalesCliente } = useFacturasForm();
 const detalleFactura = ref(null);
 const authorization = useAuthorizationStore();
 const can = (permission) => authorization.can(permission);
 const mensajeAccion = ref('');
 const facturaEtiquetas = ref(null);
 const procesandoEtiquetas = ref(false);
+const timbrandoId = ref(null);
 const errorEtiquetas = ref('');
 const avisosEtiquetas = ref([]);
 const labelPresets = {
@@ -52,6 +54,23 @@ const abrirConfiguracionEtiquetas = async (item) => {
     facturaEtiquetas.value = await obtener(item.id);
     Modal.getOrCreateInstance(document.getElementById('modalEtiquetas')).show();
   } catch (error) { mensajeAccion.value = error.response?.data?.message || 'No fue posible cargar los productos de la factura'; }
+};
+const timbrarSimulado = async (item) => {
+  if (timbrandoId.value || item.fecha_cancelado || Number(item.timbrada) === 1) return;
+  const result = await Swal.fire({
+    icon: 'question', title: '¿Marcar esta factura como timbrada?',
+    text: 'Esta acción únicamente actualizará el estado interno de la factura. No se enviará al SAT ni se generará un CFDI fiscal.',
+    showCancelButton: true, confirmButtonText: 'Sí, marcar como timbrada', cancelButtonText: 'Cancelar'
+  });
+  if (!result.isConfirmed) return;
+  timbrandoId.value = item.id;
+  try {
+    const { data } = await timbrar(item.id);
+    item.timbrada = 1; item.fecha_timbrado = data.fecha_timbrado; item.estatus = 'timbrada';
+    await Swal.fire('Factura marcada como timbrada correctamente.', 'Registro interno; documento sin validez fiscal.', 'success');
+  } catch (error) {
+    await Swal.fire('No fue posible marcar la factura', error.response?.data?.message || 'Error de conexión', 'error');
+  } finally { timbrandoId.value = null; }
 };
 const aplicarPresetEtiqueta = () => {
   const preset = labelPresets[labelConfig.value.preset];
@@ -103,7 +122,7 @@ const facturasPorTimbrar = computed(() => {
           <div class="card-body">
               <button v-if="can('facturacion.crear')" @click="abrirModal" class="btn btn-primary btn-md" data-bs-toggle="modal" data-bs-target="#modalCrear">Crear factura</button>
           </div>
-          <div class="card-body">
+          <form class="card-body" @submit.prevent="aplicarFiltros">
               <div class="row g-2 align-items-end">
                   <div class="col-md-3">
                       <label class="form-label">Folio</label>
@@ -136,13 +155,13 @@ const facturasPorTimbrar = computed(() => {
                       </select>
                   </div>
                   <div class="col-md-2">
-                      <button @click="aplicarFiltros" class="btn btn-primary btn-sm w-100">
+                      <button type="submit" class="btn btn-primary btn-sm w-100">
                           Filtrar
                       </button>
                   </div>
-                  <div class="col-md-2"><button @click="limpiarFiltros" class="btn btn-outline-secondary btn-sm w-100">Limpiar</button></div>
+                  <div class="col-md-2"><button type="button" @click="limpiarFiltros" class="btn btn-outline-secondary btn-sm w-100">Limpiar</button></div>
               </div>
-          </div>
+          </form>
       </div>
       <!-- TABLA -->
       <div class="mt-3 facturas-table">
@@ -166,14 +185,14 @@ const facturasPorTimbrar = computed(() => {
                         <small v-if="item.folio_especial" class="text-muted">Especial: {{ item.folio_especial }}</small>
                       </td>
                       <td>{{ item.razon_social }}</td>
-                      <td>{{ item.fecha_emision }}</td>
+                      <td>{{ formatearFechaHora(item.fecha_emision) }}</td>
                       <td>{{ item.fecha_entrega }}</td>
                       <td>{{ Number(item.credito) === 1 ? 'Sí' : 'No' }}</td>
                       <td>{{ item.total }}</td>
                       <td>{{ item.fecha_cancelado ? 'Cancelada' : (Number(item.timbrada ?? 0) === 1 ? 'Timbrada' : 'Pendiente') }}</td>
                       <td class="text-center">
                           <div class="d-flex justify-content-center gap-2">
-                              <button v-if="can('facturacion.timbrar')" class="btn btn-sm btn-outline-success" title="Timbrar">
+                              <button v-if="can('facturacion.timbrar') && !item.fecha_cancelado && Number(item.timbrada ?? 0) !== 1" @click="timbrarSimulado(item)" :disabled="timbrandoId === item.id" class="btn btn-sm btn-outline-success" title="Timbrado simulado">
                               <i class="bi bi-bell"></i>
                               </button>
                               <button v-if="can('facturacion.imprimir')" @click="pdfCompleto(item)" class="btn btn-sm btn-outline-danger" title="Ver PDF">
@@ -282,12 +301,12 @@ const facturasPorTimbrar = computed(() => {
                     <div class="row g-3">
                       <div class="col-md-4">
                         <label>Nombre / Razón social</label>
-                        <input type="text" class="form-control" list="listaClientesFactura" v-model="form.cliente.nombre" @input="buscarClientes" @change="clientesFiltrados[0] && seleccionarCliente(clientesFiltrados[0])">
+                        <input type="text" class="form-control" list="listaClientesFactura" v-model="form.cliente.nombre" @input="buscarClientes" @change="seleccionarClientePorNombre">
                         <datalist id="listaClientesFactura"><option v-for="cliente in clientesFiltrados" :key="cliente.id" :value="cliente.Nombre" /></datalist>
                       </div>
                       <div class="col-md-4">
                         <label>RFC</label>
-                        <input type="text" class="form-control" v-model="form.cliente.rfc">
+                        <input type="text" class="form-control" v-model="form.cliente.rfc" readonly>
                       </div>
                       <div class="col-md-4">
                         <label>Dirección</label>
@@ -296,6 +315,17 @@ const facturasPorTimbrar = computed(() => {
                       <div class="col-md-3">
                         <label>Colonia</label>
                         <input type="text" class="form-control" v-model="form.cliente.colonia">
+                      </div>
+                      <div class="col-12">
+                        <div v-if="cargandoCliente" class="alert alert-info py-2 mb-0">Cargando datos fiscales…</div>
+                        <div v-else-if="errorFiscalCliente" class="alert alert-warning py-2 mb-0">{{ errorFiscalCliente }}</div>
+                        <div v-else-if="datosFiscalesCliente" class="fiscal-summary">
+                          <strong>Datos fiscales:</strong>
+                          {{ datosFiscalesCliente.razonSocial || datosFiscalesCliente.razon_social }} · RFC {{ datosFiscalesCliente.rfc }} ·
+                          CP {{ datosFiscalesCliente.codigoPostal || datosFiscalesCliente.codigo_postal }} ·
+                          Régimen {{ datosFiscalesCliente.regimenFiscal || datosFiscalesCliente.regimen_fiscal }} ·
+                          Uso CFDI {{ datosFiscalesCliente.usoCfdi || datosFiscalesCliente.uso_cfdi }}
+                        </div>
                       </div>
                       <div class="col-md-3">
                         <label>Población</label>
@@ -320,15 +350,18 @@ const facturasPorTimbrar = computed(() => {
                 </div>
                 <!-- PRODUCTOS -->
                 <div class="card shadow-sm">
-                  <div class="card-header d-flex justify-content-between align-items-center">
+                  <div class="card-header">
                     <span>Productos</span>
-                    <div class="d-flex gap-2">
-                      <input  v-model="busqueda" type="text" class="form-control" placeholder="Buscar producto...">
-                      <select class="form-select" v-model="productoSeleccionado" @keyup.enter.prevent="agregarProducto">
-                        <option :value="null">Selecciona producto</option>
-                        <option v-for="item in productosFiltrados" :key="item.id" :value="item.id">{{ item.codigo }}</option>
-                      </select>
-                      <button type="button" class="btn btn-primary" @click="agregarProducto">Agregar</button>
+                    <div class="product-autocomplete mt-2" @focusout="cerrarSugerenciasProductos">
+                      <input id="buscarProductoFactura" v-model="busqueda" type="search" class="form-control" autocomplete="off" placeholder="Buscar por código o nombre…" @input="buscarProductos" @keydown="teclaProducto">
+                      <div v-if="busqueda.trim()" class="product-suggestions" role="listbox">
+                        <div v-if="buscandoProductos" class="product-suggestion-status">Buscando…</div>
+                        <button v-for="(item, index) in productosEncontrados" v-else :key="item.id" type="button" class="product-suggestion" :class="{ active: indiceProductoActivo === index }" @mousedown.prevent="agregarProducto(item)">
+                          <strong>{{ item.codigo }} · {{ item.descripcion }}</strong>
+                          <small>Precio: {{ formatoMoneda(item.precio) }} · Stock: {{ item.existencia }}</small>
+                        </button>
+                        <div v-if="!buscandoProductos && !productosEncontrados.length" class="product-suggestion-status">No existen coincidencias</div>
+                      </div>
                     </div>
                   </div>
                   <div class="card-body p-0">
@@ -354,7 +387,7 @@ const facturasPorTimbrar = computed(() => {
                           <td>{{ item.descripcion }}</td>
                           <td>{{ item.existencia }}</td>
                           <td>{{ formatoMoneda(item.precioOriginal) }}</td>
-                          <td><input type="number" min="0" step="0.01" v-model.number="item.precioEditable" class="form-control form-control-sm"></td>
+                          <td><input type="number" min="0" step="0.01" v-model.number="item.precioEditable" class="form-control form-control-sm" readonly title="El backend determina el precio definitivo"></td>
                           <td>
                             <input type="number" min="0" max="100" v-model.number="item.descuento" class="form-control form-control-sm">
                           </td>
@@ -405,7 +438,7 @@ const facturasPorTimbrar = computed(() => {
         </div>
         <!-- FOOTER -->
         <div class="modal-footer">
-          <button class="btn btn-success" @click="guardarFactura">{{ editingId ? 'Guardar cambios' : 'Crear factura' }}</button>
+          <button class="btn btn-success" :disabled="cargandoCliente" @click="guardarFactura">{{ editingId ? 'Guardar cambios' : 'Crear factura' }}</button>
           <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
         </div>
       </div>
@@ -423,6 +456,8 @@ const facturasPorTimbrar = computed(() => {
           <div class="col"><strong>Almacén:</strong> {{ detalleFactura.almacen }}</div>
           <div class="col"><strong>Estatus:</strong> {{ detalleFactura.estatus }}</div>
         </div>
+        <div class="mb-2"><span class="badge" :class="Number(detalleFactura.timbrada) === 1 ? 'text-bg-success' : 'text-bg-secondary'">{{ Number(detalleFactura.timbrada) === 1 ? 'Timbrada' : 'No timbrada' }}</span><span v-if="detalleFactura.fecha_timbrado" class="ms-2">Fecha: {{ formatearFecha(detalleFactura.fecha_timbrado) }}</span> · Documento sin validez fiscal</div>
+        <div v-if="detalleFactura.datosFiscalesSnapshot" class="mb-3"><strong>Datos fiscales:</strong> {{ detalleFactura.datosFiscalesSnapshot.razon_social }} · RFC {{ detalleFactura.datosFiscalesSnapshot.rfc }} · CP {{ detalleFactura.datosFiscalesSnapshot.codigo_postal }} · Régimen {{ detalleFactura.datosFiscalesSnapshot.regimen_fiscal }} · Uso CFDI {{ detalleFactura.datosFiscalesSnapshot.uso_cfdi }}</div>
         <div class="mb-3"><strong>Cliente:</strong> {{ detalleFactura.razon_social }} · RFC {{ detalleFactura.rfc }} · {{ detalleFactura.direccion }}, {{ detalleFactura.colonia }}, {{ detalleFactura.poblacion }}</div>
         <table class="table table-sm"><thead><tr><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Precio original</th><th>Precio usado</th><th>Base</th><th>IVA</th><th>Total</th></tr></thead>
           <tbody><tr v-for="c in detalleFactura.conceptos" :key="c.id"><td>{{ c.producto?.codigo || c.id_catalogo }}</td><td>{{ c.producto?.descripcion }}</td><td>{{ c.cantidad }}</td><td>{{ c.precio_original == null ? 'N/D' : formatoMoneda(c.precio_original) }}</td><td>{{ formatoMoneda(c.precio_unitario) }}</td><td>{{ formatoMoneda(c.monto_sin_iva) }}</td><td>{{ formatoMoneda(c.monto_iva) }}</td><td>{{ formatoMoneda(c.monto_total) }}</td></tr></tbody>

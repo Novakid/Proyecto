@@ -1,18 +1,25 @@
 import { ref, computed } from "vue";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useProductos } from "../../../services/productos/useProductos";
 import { useFacturas } from "../../../services/facturacion/useFacturas";
 import { useUsuarios } from "../../../services/usuarios/useUsuarios";
-import { buscarClientesFactura, buscarVendedoresFactura, obtenerPrecioFactura } from '../../../services/facturacion';
+import { buscarClientesFactura, buscarProductosFactura, buscarVendedoresFactura, obtenerPrecioFactura } from '../../../services/facturacion';
 import { getApiAssetUrl } from '../../../services/api';
 const { usuariosFiltrados, obtenerUsuarios } = useUsuarios();
-const { productos, cargarProductos, filtrar } = useProductos();
 const { guardar, cargarFacturas } = useFacturas();
 const busqueda = ref('');
+const productosEncontrados = ref([]);
+const buscandoProductos = ref(false);
+const indiceProductoActivo = ref(-1);
+let temporizadorProductos;
+let solicitudProductos;
 const mostrarSugerencias = ref(false);
 const cargandoUsuarios = ref(false);
 const clientesFiltrados = ref([]);
+const cargandoCliente = ref(false);
+const errorFiscalCliente = ref('');
+const datosFiscalesCliente = ref(null);
+let solicitudCliente = 0;
 const vendedoresFiltrados = ref([]);
 const mensajeFactura = ref('');
 const imagenProducto = ref('');
@@ -57,17 +64,33 @@ export function useFacturasForm () {
         if (form.value.cliente.nombre.length < 3) { clientesFiltrados.value = []; return; }
         clientesFiltrados.value = (await buscarClientesFactura(form.value.cliente.nombre)).data;
     };
+    const seleccionarClientePorNombre = () => {
+        const match = clientesFiltrados.value.find(usuario => usuario.Nombre === form.value.cliente.nombre);
+        if (match) seleccionarCliente(match);
+    };
     const seleccionarCliente = async (usuario) => {
+        const requestId = ++solicitudCliente;
+        cargandoCliente.value = true;
+        errorFiscalCliente.value = '';
+        datosFiscalesCliente.value = null;
         form.value.cliente.id = usuario.id;
         form.value.cliente.nombre = usuario.Nombre || '';
-        form.value.cliente.rfc = usuario.rfc || '';
+        const fiscal = usuario.datosFiscales || null;
+        if (requestId !== solicitudCliente) return;
+        datosFiscalesCliente.value = fiscal;
+        form.value.cliente.rfc = fiscal?.rfc || '';
         form.value.cliente.direccion = [usuario.Calle, usuario.num_exterior, usuario.num_interior].filter(Boolean).join(' ');
         form.value.cliente.colonia = usuario.colonia || '';
         form.value.cliente.poblacion = usuario.poblacion || '';
         clientesFiltrados.value = [];
-        await Promise.all(productosFactura.value.map(async item => {
-            item.precioEditable = Number((await obtenerPrecioFactura(usuario.id, item.id)).data.precio);
-        }));
+        if (!fiscal) errorFiscalCliente.value = 'Este cliente no tiene datos fiscales. Complétalos antes de crear la factura.';
+        try {
+            const prices = await Promise.all(productosFactura.value.map(item => obtenerPrecioFactura(usuario.id, item.id)));
+            if (requestId !== solicitudCliente) return;
+            prices.forEach((response, index) => { productosFactura.value[index].precioEditable = Number(response.data.precio); });
+        } finally {
+            if (requestId === solicitudCliente) cargandoCliente.value = false;
+        }
     };
     const seleccionarVendedor = (usuario) => {
         form.value.vendedor = usuario.Nombre;
@@ -76,30 +99,55 @@ export function useFacturasForm () {
     const formatearFecha = (fecha) => {
         return new Date(fecha).toLocaleDateString()
     }
+    const formatearFechaHora = (fecha) => {
+        if (!fecha) return '—';
+        const value = new Date(fecha);
+        if (Number.isNaN(value.getTime())) return 'Fecha inválida';
+        return new Intl.DateTimeFormat('es-MX', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false
+        }).format(value);
+    };
     const abrirModal = async () => {
         editingId.value = null;
         form.value.folioCliente = '';
         form.value.folioEspecial = '';
         productosFactura.value = [];
         mensajeFactura.value = '';
-        await cargarProductos({ limit: 100, page: 1 });
+        busqueda.value = '';
+        productosEncontrados.value = [];
+        datosFiscalesCliente.value = null;
+        errorFiscalCliente.value = '';
     };
-    const productosFiltrados = computed(() => {
-        const activos = productos.value.filter(p => p.activo === true || Number(p.activo) === 1);
-        if (!busqueda.value) return activos;
-        const search = busqueda.value.toLowerCase();
-        return activos.filter(p => String(p.codigo || '').toLowerCase().includes(search) || String(p.descripcion || '').toLowerCase().includes(search));
-    });
-    const agregarProducto = () => {
-        const existe = productosFactura.value.find(p => p.id === productoSeleccionado.value);
+    const buscarProductos = () => {
+        clearTimeout(temporizadorProductos);
+        solicitudProductos?.abort();
+        const term = busqueda.value.trim();
+        indiceProductoActivo.value = -1;
+        if (!term) { productosEncontrados.value = []; buscandoProductos.value = false; return; }
+        temporizadorProductos = setTimeout(async () => {
+            solicitudProductos = new AbortController();
+            buscandoProductos.value = true;
+            try {
+                const { data } = await buscarProductosFactura(term, solicitudProductos.signal);
+                productosEncontrados.value = busqueda.value.trim() === term && Array.isArray(data) ? data : [];
+            } catch (error) {
+                if (error.code !== 'ERR_CANCELED') mensajeFactura.value = error.response?.data?.message || 'No fue posible buscar productos';
+            } finally { buscandoProductos.value = false; }
+        }, 300);
+    };
+    const agregarProducto = async (producto) => {
+        if (!producto || !producto.activo || Number(producto.existencia) <= 0) { mensajeFactura.value = 'El producto no está disponible'; return; }
+        const existe = productosFactura.value.find(p => p.id === producto.id);
         if (existe) {
-            mensajeFactura.value = 'El producto ya fue agregado';
+            if (existe.cantidad >= Number(existe.existencia)) { mensajeFactura.value = `Stock máximo alcanzado para ${existe.codigo}`; return; }
+            existe.cantidad += 1;
+            mensajeFactura.value = `${existe.codigo}: cantidad aumentada`;
+            busqueda.value = ''; productosEncontrados.value = [];
             return;
         }
-        const producto = productos.value.find(p => p.id === productoSeleccionado.value);
-        if (!producto) return;
-        if (Number(producto.existencia) <= 0) { mensajeFactura.value = 'No hay en stock'; return; }
-        mensajeFactura.value = '';
+        mensajeFactura.value = `${producto.codigo} agregado`;
         imagenProducto.value = obtenerImagenProducto(producto) || '';
         productosFactura.value.push({
             ...producto,
@@ -108,8 +156,41 @@ export function useFacturasForm () {
             cantidad: 1,
             descuento: 0
         });
-        if (form.value.cliente.id) obtenerPrecioFactura(form.value.cliente.id, producto.id)
-            .then(({ data }) => { productosFactura.value.at(-1).precioEditable = Number(data.precio); });
+        if (form.value.cliente.id) {
+            const { data } = await obtenerPrecioFactura(form.value.cliente.id, producto.id);
+            const added = productosFactura.value.find(item => item.id === producto.id);
+            if (added) added.precioEditable = Number(data.precio);
+        }
+        busqueda.value = ''; productosEncontrados.value = []; indiceProductoActivo.value = -1;
+        setTimeout(() => document.getElementById('buscarProductoFactura')?.focus(), 0);
+    };
+    const teclaProducto = async (event) => {
+        if (event.key === 'Escape') { productosEncontrados.value = []; return; }
+        if (event.key === 'ArrowDown') { event.preventDefault(); indiceProductoActivo.value = Math.min(indiceProductoActivo.value + 1, productosEncontrados.value.length - 1); return; }
+        if (event.key === 'ArrowUp') { event.preventDefault(); indiceProductoActivo.value = Math.max(indiceProductoActivo.value - 1, 0); return; }
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        const term = busqueda.value.trim();
+        if (!term) return;
+        if (!productosEncontrados.value.length) {
+            clearTimeout(temporizadorProductos);
+            solicitudProductos?.abort();
+            solicitudProductos = new AbortController();
+            buscandoProductos.value = true;
+            try {
+                const { data } = await buscarProductosFactura(term, solicitudProductos.signal);
+                if (busqueda.value.trim() === term) productosEncontrados.value = Array.isArray(data) ? data : [];
+            } catch (error) {
+                if (error.code !== 'ERR_CANCELED') mensajeFactura.value = error.response?.data?.message || 'No fue posible buscar productos';
+            } finally { buscandoProductos.value = false; }
+        }
+        const exact = productosEncontrados.value.find(p => String(p.codigo).trim().toLowerCase() === term.toLowerCase());
+        const selected = exact || (indiceProductoActivo.value >= 0 ? productosEncontrados.value[indiceProductoActivo.value] : null);
+        if (selected) await agregarProducto(selected);
+        else mensajeFactura.value = productosEncontrados.value.length ? 'Selecciona una coincidencia antes de agregar' : 'No se encontró un producto con ese código';
+    };
+    const cerrarSugerenciasProductos = () => {
+        setTimeout(() => { productosEncontrados.value = []; indiceProductoActivo.value = -1; }, 150);
     };
     const subtotalBruto = computed(() => {
         return productosFactura.value.reduce((acc, item) => {
@@ -134,6 +215,8 @@ export function useFacturasForm () {
         }).format(valor);
     };
     const construirFactura = async () => {
+        if (cargandoCliente.value) throw new Error('Espera a que terminen de cargar los datos fiscales del cliente');
+        if (!form.value.cliente.id || !datosFiscalesCliente.value) throw new Error(errorFiscalCliente.value || 'Selecciona un cliente con datos fiscales completos');
         if (!productosFactura.value.length) throw new Error('Agrega al menos un producto');
         const invalido = productosFactura.value.find(item => item.cantidad < 1 || item.cantidad > item.existencia);
         if (invalido) throw new Error(`Cantidad inválida para ${invalido.codigo}. Disponible: ${invalido.existencia}`);
@@ -184,7 +267,6 @@ export function useFacturasForm () {
         return response.data;
     };
     const cargarEdicion = async (factura) => {
-        await cargarProductos({ limit: 100, page: 1 });
         editingId.value = factura.id;
         form.value = {
             folioCliente: factura.folio_cliente || '', folioEspecial: factura.folio_especial || '',
@@ -203,6 +285,7 @@ export function useFacturasForm () {
             descuento: Number(c.precio_unitario) > 0 ? Math.max(0, Math.min(100,
                 100 - (Number(c.monto_sin_iva) / (Number(c.precio_unitario) * Number(c.cantidad))) * 100)) : 0,
         }));
+        datosFiscalesCliente.value = factura.datosFiscalesSnapshot || null;
     };
     const colores = {
         rojo: [185, 28, 28],
@@ -230,10 +313,11 @@ export function useFacturasForm () {
         doc.setFontSize(11)
         doc.text("DATOS DEL CLIENTE",14,42)
         doc.setFontSize(9)
-        doc.text(`Cliente: ${factura.razon_social}`,14,50)
-        doc.text(`RFC: ${factura.rfc}`,14,56)
-        doc.text(`Dirección: ${factura.direccion || ''}`,90,50)
-        doc.text(`Ciudad: ${factura.poblacion}`,90,56)
+        const fiscal = factura.datosFiscalesSnapshot || {};
+        doc.text(`Cliente: ${fiscal.razon_social || factura.razon_social || ''}`,14,50)
+        doc.text(`RFC: ${fiscal.rfc || factura.rfc || ''}`,14,56)
+        doc.text(`CP fiscal: ${fiscal.codigo_postal || 'N/D'} · Régimen: ${fiscal.regimen_fiscal || 'N/D'}`,90,50)
+        doc.text(`Uso CFDI: ${fiscal.uso_cfdi || 'N/D'} · ${fiscal.correo || ''}`,90,56)
         const body = factura.conceptos.map((c) => [
             c.producto?.codigo || c.id_catalogo,
             c.cantidad,
@@ -302,6 +386,8 @@ export function useFacturasForm () {
         doc.setTextColor(120)
         doc.setFontSize(8)
         doc.text("Este documento fue generado por APARICIO REFACCIONES.", 105, 290, {align:"center"})
+        doc.text(Number(factura.timbrada) === 1 ? `Estado interno: Timbrada · ${formatearFecha(factura.fecha_timbrado)}` : 'Estado interno: No timbrada', 105, 280, {align:'center'})
+        doc.text('Documento sin validez fiscal', 105, 284, {align:'center'})
         // doc.addImage(logoBase64, "PNG", 14, 5, 24, 24)
         // doc.addImage(qrBase64,'PNG',165,245,30,30)
         const url = URL.createObjectURL(doc.output('blob'));
@@ -346,11 +432,12 @@ export function useFacturasForm () {
     };
     return {
         formatearFecha,
+        formatearFechaHora,
         busqueda,
         productoSeleccionado,
         form,
         abrirModal,
-        productosFiltrados,
+        productosEncontrados, buscandoProductos, indiceProductoActivo, buscarProductos, teclaProducto,
         productosFactura,
         agregarProducto,
         subtotalBruto,
@@ -368,7 +455,8 @@ export function useFacturasForm () {
         usuariosFiltrados,
         mostrarSugerencias,
         cargandoUsuarios
-        ,buscarClientes, seleccionarCliente, clientesFiltrados, vendedoresFiltrados, mensajeFactura, imagenProducto
-        ,editingId, cargarEdicion, obtenerImagenProducto
+        ,buscarClientes, seleccionarCliente, seleccionarClientePorNombre, clientesFiltrados, vendedoresFiltrados, mensajeFactura, imagenProducto
+        ,editingId, cargarEdicion, obtenerImagenProducto, cargandoCliente, errorFiscalCliente, datosFiscalesCliente
+        ,cerrarSugerenciasProductos
     }
 }

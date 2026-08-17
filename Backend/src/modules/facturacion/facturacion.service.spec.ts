@@ -3,8 +3,8 @@ import { DataSource } from 'typeorm';
 import { FacturasService } from './facturacion.service';
 import { Producto } from '../productos/entities/producto.entity';
 import { NotaPago } from './entities/nota-pago.entity';
-import { HistorialCompra } from './entities/historial-compra.entity';
 import { CreateFacturaDto } from './dto/create-factura.dto';
+import { Usuario } from '../usuarios/entities/usuario.entity';
 
 describe('FacturasService', () => {
   let folioSequence = 0;
@@ -17,6 +17,7 @@ describe('FacturasService', () => {
   } as Producto;
   const queryBuilder = {
     setLock: jest.fn().mockReturnThis(),
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     getMany: jest.fn(),
     getOne: jest.fn(),
@@ -31,6 +32,7 @@ describe('FacturasService', () => {
     createQueryBuilder: jest.fn(() => queryBuilder),
   };
   const detalleRepo = { create: jest.fn((value) => value), save: jest.fn() };
+  const usuarioRepo = { findOne: jest.fn() };
   const manager = {
     query: jest.fn(async (sql: string) => {
       if (sql.includes('INSERT INTO factura_folio_consecutivos')) {
@@ -44,6 +46,7 @@ describe('FacturasService', () => {
     getRepository: jest.fn((entity) => {
       if (entity === Producto) return productoRepo;
       if (entity === NotaPago) return notaRepo;
+      if (entity === Usuario) return usuarioRepo;
       return detalleRepo;
     }),
   };
@@ -52,6 +55,7 @@ describe('FacturasService', () => {
   const dashboardEvents = { notifyUpdate: jest.fn() };
   const service = new FacturasService(dataSource, dashboardEvents as never);
   const dto: CreateFacturaDto = {
+    clienteId: 2,
     vendedor: 'Admin',
     almacen: 'Principal',
     cliente: {
@@ -74,6 +78,24 @@ describe('FacturasService', () => {
     producto.existencia = 10;
     queryBuilder.getMany.mockResolvedValue([producto]);
     notaRepo.save.mockImplementation(async (value) => ({ ...value, id: 7 }));
+    usuarioRepo.findOne.mockResolvedValue({
+      id: 2,
+      estatus: 1,
+      identidad: 'cliente',
+      datosFiscales: {
+        tipoPersona: 'fisica',
+        rfc: 'XAXX010101000',
+        razonSocial: 'Cliente Fiscal',
+        codigoPostal: '06000',
+        regimenFiscal: '612',
+        usoCfdi: 'G03',
+        correo: 'cliente@ejemplo.com',
+        telefono: '5555555555',
+        esExtranjero: 2,
+        residenciaFiscal: null,
+        numRegIdTrib: null,
+      },
+    });
     detalleRepo.save.mockResolvedValue([]);
     productoRepo.save.mockResolvedValue([]);
   });
@@ -162,17 +184,20 @@ describe('FacturasService', () => {
     expect(dashboardEvents.notifyUpdate).not.toHaveBeenCalled();
   });
 
-  it('simula timbrado solo para una factura QA y notifica al Dashboard', async () => {
+  it('marca una factura válida como timbrada y notifica al Dashboard', async () => {
     queryBuilder.getOne.mockResolvedValue({
       id: 8,
-      folio_cliente: 'QA_TEST_FACTURA_8',
+      folio_cliente: 'FAC-2026-000008',
+      id_cliente: 2,
+      datosFiscalesSnapshot: { rfc: 'XAXX010101000' },
+      detalles: [{ id: 1 }],
       timbrada: 0,
       fecha_timbrado: null,
       fecha_cancelado: null,
     });
     notaRepo.save.mockImplementation(async (value) => value);
 
-    await expect(service.simularTimbradoQa(8)).resolves.toMatchObject({
+    await expect(service.timbrar(8)).resolves.toMatchObject({
       id: 8,
       timbrada: 1,
     });
@@ -182,17 +207,24 @@ describe('FacturasService', () => {
     expect(dashboardEvents.notifyUpdate).toHaveBeenCalledTimes(1);
   });
 
-  it('rechaza la simulacion para facturas que no son QA', async () => {
+  it('es idempotente y conserva la fecha del primer timbrado', async () => {
+    const originalDate = new Date('2026-08-17T12:00:00Z');
     queryBuilder.getOne.mockResolvedValue({
       id: 9,
-      folio_cliente: 'FACTURA_REAL_9',
-      timbrada: 0,
+      folio_cliente: 'FAC-2026-000009',
+      id_cliente: 2,
+      datosFiscalesSnapshot: { rfc: 'XAXX010101000' },
+      detalles: [{ id: 1 }],
+      timbrada: 1,
+      fecha_timbrado: originalDate,
       fecha_cancelado: null,
     });
 
-    await expect(service.simularTimbradoQa(9)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(service.timbrar(9)).resolves.toMatchObject({
+      message: 'La factura ya se encuentra marcada como timbrada',
+      fecha_timbrado: originalDate,
+    });
+    expect(notaRepo.save).not.toHaveBeenCalled();
     expect(dashboardEvents.notifyUpdate).not.toHaveBeenCalled();
   });
 });

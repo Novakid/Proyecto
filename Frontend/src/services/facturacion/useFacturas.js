@@ -1,5 +1,5 @@
 import { reactive, ref } from 'vue';
-import { getFacturas, getFactura, createFactura, updateFactura, cancelFactura } from './index';
+import { getFacturas, getFactura, createFactura, updateFactura, cancelFactura, timbrarFactura } from './index';
 
 const facturas = ref([]);
 const pagination = reactive({ page: 1, limit: 8, total: 0, lastPage: 1 });
@@ -33,6 +33,7 @@ export function useFacturas() {
   const obtener = async (id) => (await getFactura(id)).data;
   const guardar = async (payload, id = null) => id ? updateFactura(id, payload) : createFactura(payload);
   const cancelar = async (id) => cancelFactura(id);
+  const timbrar = async (id) => timbrarFactura(id);
   return { facturas, pagination, filtros, loading, errorFacturas, cargarFacturas, aplicarFiltros,
-    limpiarFiltros, obtener, guardar, cancelar };
+    limpiarFiltros, obtener, guardar, cancelar, timbrar };
 }

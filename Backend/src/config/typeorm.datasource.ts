@@ -20,6 +20,7 @@ import { ClienteDatos } from '../modules/usuarios/entities/cliente-datos.entity'
 import { CreateOrHardenClientesDatos1786665600000 } from '../migrations/1786665600000-CreateOrHardenClientesDatos';
 import { AddCatalogoAgregarStockPermission1786838400000 } from '../migrations/1786838400000-AddCatalogoAgregarStockPermission';
 import { AddAutomaticInvoiceFolios1787097600000 } from '../migrations/1787097600000-AddAutomaticInvoiceFolios';
+import { AddInvoiceFiscalSnapshotAndStampState1787184000000 } from '../migrations/1787184000000-AddInvoiceFiscalSnapshotAndStampState';
 
 export default new DataSource({
   type: 'mysql',
@@ -51,6 +52,7 @@ export default new DataSource({
     CreateOrHardenClientesDatos1786665600000,
     AddCatalogoAgregarStockPermission1786838400000,
     AddAutomaticInvoiceFolios1787097600000,
+    AddInvoiceFiscalSnapshotAndStampState1787184000000,
   ],
   synchronize: false,
 });

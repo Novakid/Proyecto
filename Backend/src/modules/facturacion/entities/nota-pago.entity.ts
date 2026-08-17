@@ -27,8 +27,15 @@ export class NotaPago {
   @Column({ type: 'timestamp', nullable: true })
   fecha_timbrado!: Date;
 
-  @Column({ name: 'timbrado', type: 'int', nullable: true, default: 0 })
+  @Column({ name: 'timbrado', type: 'tinyint', nullable: false, default: 0 })
   timbrada!: number;
+
+  @Column({
+    name: 'datos_fiscales_snapshot',
+    type: 'simple-json',
+    nullable: true,
+  })
+  datosFiscalesSnapshot!: Record<string, unknown> | null;
 
   @Column({ type: 'timestamp', nullable: true })
   fecha_cancelado!: Date;

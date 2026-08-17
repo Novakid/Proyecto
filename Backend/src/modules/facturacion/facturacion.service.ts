@@ -10,6 +10,21 @@ import { HistorialCompra } from './entities/historial-compra.entity';
 import { CreateFacturaDto, FilterFacturasDto } from './dto/create-factura.dto';
 import { Producto } from '../productos/entities/producto.entity';
 import { DashboardEventsService } from '../dashboard/dashboard-events.service';
+import { Usuario } from '../usuarios/entities/usuario.entity';
+
+type FiscalSnapshot = {
+  tipo_persona: string;
+  rfc: string;
+  razon_social: string;
+  codigo_postal: string;
+  regimen_fiscal: string;
+  uso_cfdi: string;
+  correo: string;
+  telefono: string;
+  es_extranjero: number;
+  residencia_fiscal: string | null;
+  num_reg_id_trib: string | null;
+};
 
 const roundMoney = (value: number): number =>
   Math.round((value + Number.EPSILON) * 100) / 100;
@@ -42,6 +57,7 @@ export class FacturasService {
     data: CreateFacturaDto,
     products: Map<number, Producto>,
     originals = new Map<number, number | null>(),
+    effectivePrices = new Map<number, number>(),
   ) {
     let subtotal = 0;
     let descuento = 0;
@@ -56,7 +72,8 @@ export class FacturasService {
         throw new BadRequestException(
           `Stock insuficiente para ${producto.codigo}. Disponible: ${producto.existencia}`,
         );
-      const precioUnitario = item.precio_unitario ?? Number(producto.precio);
+      const precioUnitario =
+        effectivePrices.get(producto.id) ?? Number(producto.precio);
       if (!Number.isFinite(precioUnitario) || precioUnitario < 0)
         throw new BadRequestException(
           `Precio inválido para ${producto.codigo}`,
@@ -93,6 +110,7 @@ export class FacturasService {
   private noteValues(
     data: CreateFacturaDto,
     totals: { subtotal: number; descuento: number; total: number },
+    fiscal: FiscalSnapshot,
   ) {
     return {
       folio_especial: this.normalizeSpecialFolio(data.folioEspecial),
@@ -102,9 +120,10 @@ export class FacturasService {
       vendedor: data.vendedor,
       almacen: data.almacen,
       id_cliente: data.clienteId ?? null,
+      datosFiscalesSnapshot: fiscal,
       ...totals,
-      razon_social: data.cliente.nombre,
-      rfc: data.cliente.rfc,
+      razon_social: fiscal.razon_social,
+      rfc: fiscal.rfc,
       direccion: data.cliente.direccion,
       colonia: data.cliente.colonia,
       poblacion: data.cliente.poblacion,
@@ -112,6 +131,67 @@ export class FacturasService {
       operador: data.cliente.operador,
       credito: data.cliente.credito ? 1 : 0,
     };
+  }
+
+  private async loadFiscalSnapshot(
+    manager: EntityManager,
+    clienteId: number,
+  ): Promise<FiscalSnapshot> {
+    const usuario = await manager.getRepository(Usuario).findOne({
+      where: { id: clienteId },
+      relations: ['datosFiscales'],
+    });
+    if (
+      !usuario ||
+      usuario.estatus !== 1 ||
+      String(usuario.identidad).toLowerCase() !== 'cliente'
+    ) {
+      throw new BadRequestException(
+        'El cliente seleccionado no existe o no está activo',
+      );
+    }
+    const fiscal = usuario.datosFiscales;
+    if (!fiscal) {
+      throw new BadRequestException(
+        'El cliente seleccionado no tiene datos fiscales completos',
+      );
+    }
+    return {
+      tipo_persona: fiscal.tipoPersona,
+      rfc: fiscal.rfc,
+      razon_social: fiscal.razonSocial,
+      codigo_postal: fiscal.codigoPostal,
+      regimen_fiscal: fiscal.regimenFiscal,
+      uso_cfdi: fiscal.usoCfdi,
+      correo: fiscal.correo,
+      telefono: fiscal.telefono,
+      es_extranjero: Number(fiscal.esExtranjero),
+      residencia_fiscal: fiscal.residenciaFiscal,
+      num_reg_id_trib: fiscal.numRegIdTrib,
+    };
+  }
+
+  private async loadEffectivePrices(
+    manager: EntityManager,
+    clienteId: number,
+    products: Map<number, Producto>,
+  ) {
+    const prices = new Map(
+      [...products].map(([id, product]) => [id, Number(product.precio)]),
+    );
+    const ids = [...products.keys()];
+    if (!ids.length) return prices;
+    const placeholders = ids.map(() => '?').join(',');
+    const rows = await manager.query<
+      Array<{ id_producto: number; precio: string | number }>
+    >(
+      `SELECT id_producto, precio FROM clientes_precios_especiales
+       WHERE id_usuario = ? AND estatus = 1 AND id_producto IN (${placeholders})`,
+      [clienteId, ...ids],
+    );
+    for (const row of rows)
+      prices.set(Number(row.id_producto), Number(row.precio));
+    return prices;
   }
 
   private normalizeSpecialFolio(value: string | null | undefined) {
@@ -184,13 +264,24 @@ export class FacturasService {
             manager,
             data.conceptos.map((x) => x.producto_id),
           );
-          const calculated = this.calculate(data, products);
+          const fiscal = await this.loadFiscalSnapshot(manager, data.clienteId);
+          const effectivePrices = await this.loadEffectivePrices(
+            manager,
+            data.clienteId,
+            products,
+          );
+          const calculated = this.calculate(
+            data,
+            products,
+            new Map(),
+            effectivePrices,
+          );
           const generatedFolio = await this.nextFolio(manager);
           const notaRepo = manager.getRepository(NotaPago);
           const detalleRepo = manager.getRepository(HistorialCompra);
           const nota = await notaRepo.save(
             notaRepo.create({
-              ...this.noteValues(data, calculated),
+              ...this.noteValues(data, calculated, fiscal),
               folio_cliente: generatedFolio,
               timbrada: 0,
               creadoPorUsuarioId: userId ?? null,
@@ -372,13 +463,24 @@ export class FacturasService {
       const originals = new Map(
         nota.detalles.map((d) => [d.id_catalogo, d.precio_original]),
       );
-      const calculated = this.calculate(data, products, originals);
-      Object.assign(nota, this.noteValues(data, calculated));
+      const fiscal = await this.loadFiscalSnapshot(manager, data.clienteId);
+      const effectivePrices = await this.loadEffectivePrices(
+        manager,
+        data.clienteId,
+        products,
+      );
+      const recalculated = this.calculate(
+        data,
+        products,
+        originals,
+        effectivePrices,
+      );
+      Object.assign(nota, this.noteValues(data, recalculated, fiscal));
       await notaRepo.save(nota);
       await manager.getRepository(HistorialCompra).remove(nota.detalles);
       const detailRepo = manager.getRepository(HistorialCompra);
       await detailRepo.save(
-        calculated.lines.map((line) =>
+        recalculated.lines.map((line) =>
           detailRepo.create({
             id_catalogo: line.producto.id,
             cantidad: line.item.cantidad,
@@ -392,7 +494,7 @@ export class FacturasService {
           }),
         ),
       );
-      for (const line of calculated.lines)
+      for (const line of recalculated.lines)
         line.producto.existencia -= line.item.cantidad;
       await manager.getRepository(Producto).save([...products.values()]);
       return {
@@ -400,10 +502,10 @@ export class FacturasService {
         id,
         folio_cliente: nota.folio_cliente,
         folio_especial: nota.folio_especial,
-        subtotal: calculated.subtotal,
-        descuento: calculated.descuento,
-        iva: calculated.iva,
-        total: calculated.total,
+        subtotal: recalculated.subtotal,
+        descuento: recalculated.descuento,
+        iva: recalculated.iva,
+        total: recalculated.total,
       };
     });
     this.dashboardEvents.notifyUpdate();
@@ -438,41 +540,80 @@ export class FacturasService {
     return result;
   }
 
-  async simularTimbradoQa(id: number, userId?: number, canViewAll = true) {
-    const nota = await this.dataSource.transaction(async (manager) => {
+  async timbrar(id: number, userId?: number, canViewAll = true) {
+    const result = await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(NotaPago);
       const factura = await repo
         .createQueryBuilder('nota')
         .setLock('pessimistic_write')
+        .leftJoinAndSelect('nota.detalles', 'detalle')
         .where('nota.id = :id', { id })
         .getOne();
       if (!factura) throw new NotFoundException('Factura no encontrada');
       if (!canViewAll && factura.creadoPorUsuarioId !== userId)
         throw new NotFoundException('Factura no encontrada');
-      if (!factura.folio_cliente?.startsWith('QA_TEST_')) {
-        throw new BadRequestException(
-          'La simulación de timbrado solo está permitida para facturas QA_TEST_',
-        );
-      }
       if (factura.fecha_cancelado)
         throw new ConflictException(
           'Una factura cancelada no puede simularse como timbrada',
         );
+      if (Number(factura.timbrada) === 1)
+        return { factura, alreadyStamped: true };
+      if (!factura.folio_cliente)
+        throw new BadRequestException('La factura no tiene folio principal');
+      if (!factura.detalles?.length)
+        throw new BadRequestException('La factura no tiene conceptos');
+      if (!factura.id_cliente || !factura.datosFiscalesSnapshot)
+        throw new BadRequestException(
+          'La factura no tiene un snapshot fiscal válido del cliente',
+        );
       factura.timbrada = 1;
       factura.fecha_timbrado = new Date();
-      return repo.save(factura);
+      return { factura: await repo.save(factura), alreadyStamped: false };
     });
-    this.dashboardEvents.notifyUpdate();
+    if (!result.alreadyStamped) this.dashboardEvents.notifyUpdate();
     return {
-      message: 'SIMULACIÓN QA DE TIMBRADO realizada',
-      id: nota.id,
+      message: result.alreadyStamped
+        ? 'La factura ya se encuentra marcada como timbrada'
+        : 'Factura marcada como timbrada correctamente',
+      id: result.factura.id,
       timbrada: 1,
+      fecha_timbrado: result.factura.fecha_timbrado,
     };
+  }
+
+  async buscarProductos(search = '', limit = 10) {
+    const term = search.trim();
+    if (!term) return [];
+    return this.dataSource
+      .getRepository(Producto)
+      .createQueryBuilder('producto')
+      .select([
+        'producto.id',
+        'producto.codigo',
+        'producto.descripcion',
+        'producto.precio',
+        'producto.existencia',
+        'producto.activo',
+      ])
+      .where('producto.activo = :active', { active: true })
+      .andWhere('producto.existencia > 0')
+      .andWhere(
+        '(LOWER(producto.codigo) LIKE LOWER(:term) OR LOWER(producto.descripcion) LIKE LOWER(:term))',
+        { term: `%${term}%` },
+      )
+      .orderBy(
+        'CASE WHEN LOWER(producto.codigo) = LOWER(:exact) THEN 0 ELSE 1 END',
+        'ASC',
+      )
+      .addOrderBy('producto.codigo', 'ASC')
+      .setParameter('exact', term)
+      .take(Math.min(10, Math.max(1, limit)))
+      .getMany();
   }
 
   async buscarVendedores(search = '') {
     return this.dataSource
-      .getRepository('usuarios')
+      .getRepository(Usuario)
       .createQueryBuilder('u')
       .where('LOWER(u.identidad) = :identidad', { identidad: 'empleado' })
       .andWhere('u.estatus = 1')
@@ -484,9 +625,10 @@ export class FacturasService {
   }
 
   async buscarClientes(search = '') {
-    return this.dataSource
-      .getRepository('usuarios')
+    const clients = await this.dataSource
+      .getRepository(Usuario)
       .createQueryBuilder('u')
+      .leftJoinAndSelect('u.datosFiscales', 'fiscal')
       .where('LOWER(u.identidad) = :identidad', { identidad: 'cliente' })
       .andWhere('u.estatus = 1')
       .andWhere(
@@ -495,6 +637,21 @@ export class FacturasService {
       )
       .take(10)
       .getMany();
+    return clients.map((user) => ({
+      id: user.id,
+      Nombre: user.Nombre,
+      Apellido_p: user.Apellido_p,
+      Apellido_m: user.Apellido_m,
+      Calle: user.Calle,
+      num_interior: user.num_interior,
+      num_exterior: user.num_exterior,
+      poblacion: user.poblacion,
+      colonia: user.colonia,
+      cp: user.cp,
+      estatus: user.estatus,
+      identidad: user.identidad,
+      datosFiscales: user.datosFiscales,
+    }));
   }
 
   async precioEfectivo(clienteId: number, productoId: number) {

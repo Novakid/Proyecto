@@ -8,6 +8,7 @@ describe('CreateFacturaDto', () => {
     forbidNonWhitelisted: true,
   });
   const valid = {
+    clienteId: 1,
     vendedor: 'Administrador',
     almacen: 'Principal',
     cliente: {

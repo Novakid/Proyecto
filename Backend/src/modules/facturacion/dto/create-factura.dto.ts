@@ -113,11 +113,10 @@ export class CreateFacturaDto {
   @MaxLength(255)
   almacen!: string;
 
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  clienteId?: number;
+  clienteId!: number;
 
   @ValidateNested()
   @Type(() => ClienteDto)
@@ -133,6 +132,22 @@ export class CreateFacturaDto {
   @IsOptional()
   @Type(() => TotalesDto)
   totales?: TotalesDto;
+}
+
+export class SearchFacturaCatalogDto {
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MaxLength(100)
+  search = '';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  limit = 10;
 }
 
 export class FilterFacturasDto {
