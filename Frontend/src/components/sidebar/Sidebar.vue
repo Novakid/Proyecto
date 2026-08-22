@@ -81,6 +81,10 @@ onUnmounted(() => window.removeEventListener('storage', syncCurrentUser));
         <i class="bi bi-clipboard fs-5"></i>
         <span v-if="!collapsed"> Facturaciones</span>
       </router-link>
+      <router-link v-if="can('cotizaciones.ver')" to="/cotizaciones" class="nav-link">
+        <i class="bi bi-file-earmark-text fs-5"></i>
+        <span v-if="!collapsed"> Cotizaciones</span>
+      </router-link>
       <router-link v-if="can('usuarios.ver')" to="/Usuarios" class="nav-link">
         <i class="fa fa-user-o" aria-hidden="true"></i>
         <span v-if="!collapsed"> Usuarios</span>

@@ -11,6 +11,7 @@ import { TiposModule } from './modules/tipos/tipos.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { getUploadRoot } from './common/uploads/upload-paths';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { CotizacionesModule } from './modules/cotizaciones/cotizaciones.module';
 
 @Module({
   imports: [
@@ -28,9 +29,10 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     ProductosModule,
     PedidosModule,
     FacturacionModule,
-    UsuarioModule
-    ,AuthModule,
-    DashboardModule
+    UsuarioModule,
+    AuthModule,
+    DashboardModule,
+    CotizacionesModule,
   ],
 })
 export class AppModule {}

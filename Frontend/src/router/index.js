@@ -6,6 +6,7 @@ import Productos from '../views/Productos/Productos.vue';
 import CreacionTipos from '../views/Productos/CreacionTipos.vue';
 import Facturaciones from '../views/Facturaciones/Facturaciones.vue';
 import Usuarios from '../views/Usuarios/Usuarios.vue';
+import Cotizaciones from '../views/Cotizaciones/Cotizaciones.vue';
 import Login from '../views/Login/Login.vue';
 import { isAuthenticated } from '../services/auth';
 import { useAuthorizationStore } from '../stores/authorization';
@@ -33,6 +34,13 @@ const routes = [
     component: CleanLayout,
     children: [
       { path: '', component: Facturaciones, meta: { title: 'Facturaciones', requiredPermission: 'facturacion.ver' } },
+    ]
+  },
+  {
+    path: '/cotizaciones',
+    component: CleanLayout,
+    children: [
+      { path: '', component: Cotizaciones, meta: { title: 'Cotizaciones', requiredPermission: 'cotizaciones.ver' } },
     ]
   },
   {

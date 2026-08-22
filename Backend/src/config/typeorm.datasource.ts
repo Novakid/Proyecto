@@ -21,6 +21,10 @@ import { CreateOrHardenClientesDatos1786665600000 } from '../migrations/17866656
 import { AddCatalogoAgregarStockPermission1786838400000 } from '../migrations/1786838400000-AddCatalogoAgregarStockPermission';
 import { AddAutomaticInvoiceFolios1787097600000 } from '../migrations/1787097600000-AddAutomaticInvoiceFolios';
 import { AddInvoiceFiscalSnapshotAndStampState1787184000000 } from '../migrations/1787184000000-AddInvoiceFiscalSnapshotAndStampState';
+import { Cotizacion } from '../modules/cotizaciones/entities/cotizacion.entity';
+import { CotizacionDetalle } from '../modules/cotizaciones/entities/cotizacion-detalle.entity';
+import { CompleteCotizacionesModule1787270400000 } from '../migrations/1787270400000-CompleteCotizacionesModule';
+import { CompleteCotizacionesRelations1787356800000 } from '../migrations/1787356800000-CompleteCotizacionesRelations';
 
 export default new DataSource({
   type: 'mysql',
@@ -41,6 +45,8 @@ export default new DataSource({
     Rol,
     Permiso,
     ClienteDatos,
+    Cotizacion,
+    CotizacionDetalle,
   ],
   migrations: [
     InitialSchema1700000000000,
@@ -53,6 +59,8 @@ export default new DataSource({
     AddCatalogoAgregarStockPermission1786838400000,
     AddAutomaticInvoiceFolios1787097600000,
     AddInvoiceFiscalSnapshotAndStampState1787184000000,
+    CompleteCotizacionesModule1787270400000,
+    CompleteCotizacionesRelations1787356800000,
   ],
   synchronize: false,
 });
