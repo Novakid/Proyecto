@@ -34,10 +34,14 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@Req() request: AuthenticatedRequest) { return this.authService.me(request.user!.sub); }
+  me(@Req() request: AuthenticatedRequest) {
+    return this.authService.me(request.user!.sub);
+  }
 
   @Get('roles/asignables')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions('usuarios.asignar_roles')
-  assignableRoles() { return this.authService.assignableRoles(); }
+  assignableRoles() {
+    return this.authService.assignableRoles();
+  }
 }

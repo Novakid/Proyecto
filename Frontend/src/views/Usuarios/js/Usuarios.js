@@ -58,7 +58,11 @@ export function useUsuarioForm() {
         const payload = { ...formCrear.value };
         delete payload.tendraAcceso; delete payload.passwordConfirm;
         if (payload.roles) payload.roles = payload.roles.filter((role) => payload.identidad === 'Cliente' ? role === 'cliente' : role !== 'cliente');
-        if (!formCrear.value.tendraAcceso) { delete payload.email; delete payload.password; delete payload.roles; }
+        if (!formCrear.value.tendraAcceso) {
+            delete payload.email;
+            delete payload.password;
+            delete payload.roles;
+        }
         await crear(payload);
         limpiarFormulario();
     };

@@ -24,8 +24,12 @@ const validateLabelRequest = (payload) => ({
 const loadGeneratedLabelHtml = async (win, html) => {
   const temporaryFile = path.join(os.tmpdir(), `aparicio-label-${randomUUID()}.html`);
   fs.writeFileSync(temporaryFile, html, { encoding: 'utf8', flag: 'wx' });
-  try { await win.loadFile(temporaryFile); }
-  finally { fs.rmSync(temporaryFile, { force: true }); }
+  try {
+    await win.loadFile(temporaryFile);
+  }
+  finally {
+    fs.rmSync(temporaryFile, { force: true });
+  }
 };
 if (!app.isPackaged && typeof process.loadEnvFile === 'function') {
   try {

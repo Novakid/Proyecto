@@ -22,9 +22,31 @@ const detalleModal = ref(null);
 const rolCompatible = (rol, identidad) => String(identidad || '').trim().toLowerCase() === 'cliente'
   ? rol.clave === 'cliente'
   : rol.clave !== 'cliente';
-const abrirDescuentos = (usuario) => { clienteDescuentos.value = usuario; };
-const desactivar = async (item) => { const result=await Swal.fire({icon:'warning',title:'¿Desactivar este usuario?',text:'El usuario ya no podrá iniciar sesión ni realizar operaciones, pero su información y registros históricos se conservarán.',showCancelButton:true,confirmButtonText:'Sí, desactivar',cancelButtonText:'Cancelar'});if(!result.isConfirmed)return;try{await deleteUsuario(item.id);await obtenerUsuarios();await Swal.fire('Usuario desactivado correctamente','','success')}catch(e){await Swal.fire('No fue posible desactivar el usuario',e.response?.data?.message||'Error de conexión','error')}};
-const reactivar = async (item) => { const result=await Swal.fire({icon:'question',title:'¿Reactivar este usuario?',showCancelButton:true,confirmButtonText:'Sí, reactivar',cancelButtonText:'Cancelar'});if(!result.isConfirmed)return;try{await reactivateUsuario(item.id);await obtenerUsuarios();await Swal.fire('Usuario reactivado correctamente','','success')}catch(e){await Swal.fire('No fue posible reactivar el usuario',e.response?.data?.message||'Error de conexión','error')}};
+const abrirDescuentos = (usuario) => {
+    clienteDescuentos.value = usuario;
+};
+const desactivar = async (item) => {
+    const result=await Swal.fire({icon:'warning',title:'¿Desactivar este usuario?',text:'El usuario ya no podrá iniciar sesión ni realizar operaciones, pero su información y registros históricos se conservarán.',showCancelButton:true,confirmButtonText:'Sí, desactivar',cancelButtonText:'Cancelar'});
+    if(!result.isConfirmed)return;
+    try{
+        await deleteUsuario(item.id);
+        await obtenerUsuarios();
+        await Swal.fire('Usuario desactivado correctamente','','success')
+    }catch(e){
+        await Swal.fire('No fue posible desactivar el usuario',e.response?.data?.message||'Error de conexión','error')
+    }
+};
+const reactivar = async (item) => {
+    const result=await Swal.fire({icon:'question',title:'¿Reactivar este usuario?',showCancelButton:true,confirmButtonText:'Sí, reactivar',cancelButtonText:'Cancelar'});
+    if(!result.isConfirmed)return;
+    try{
+        await reactivateUsuario(item.id);
+        await obtenerUsuarios();
+        await Swal.fire('Usuario reactivado correctamente','','success')
+    }catch(e){
+        await Swal.fire('No fue posible reactivar el usuario',e.response?.data?.message||'Error de conexión','error')
+    }
+};
 onMounted(async () => {
   await obtenerUsuarios();
   if (can('usuarios.asignar_roles')) rolesAsignables.value = (await getAssignableRoles()).data;

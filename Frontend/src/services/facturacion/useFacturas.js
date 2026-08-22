@@ -23,7 +23,9 @@ export function useFacturas() {
       facturas.value = [];
       errorFacturas.value = error.response?.data?.message || 'No fue posible cargar las facturas';
       console.error('Error al cargar facturas', error);
-    } finally { loading.value = false; }
+    } finally {
+      loading.value = false;
+    }
   };
   const aplicarFiltros = () => cargarFacturas(1);
   const limpiarFiltros = () => {

@@ -3,11 +3,92 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
 import { agregarStockProducto, getProducto } from '../../services/productos';
-const emit=defineEmits(['updated']); const modal=ref(null),producto=ref(null),cantidad=ref(''),loading=ref(false),saving=ref(false),error=ref('');
+const emit=defineEmits(['updated']);
+const modal=ref(null),producto=ref(null),cantidad=ref(''),loading=ref(false),saving=ref(false),error=ref('');
 const nuevoStock=computed(()=>producto.value&&Number.isInteger(Number(cantidad.value))?Number(producto.value.stock||0)+Number(cantidad.value):Number(producto.value?.stock||0));
-const reset=()=>{producto.value=null;cantidad.value='';loading.value=false;saving.value=false;error.value=''};
-const open=async(id)=>{reset();Modal.getOrCreateInstance(modal.value).show();loading.value=true;try{producto.value=(await getProducto(id)).data}catch(e){Modal.getInstance(modal.value)?.hide();await Swal.fire('No fue posible cargar el producto',e.response?.data?.message||'Error de conexión','error')}finally{loading.value=false}};
-const submit=async()=>{if(saving.value)return;const n=Number(cantidad.value);if(!/^\d+$/.test(String(cantidad.value))||!Number.isInteger(n)||n<1||n>1000000){error.value='La cantidad debe ser un entero entre 1 y 1,000,000.';return}error.value='';saving.value=true;try{const {data}=await agregarStockProducto(producto.value.id,n);producto.value.stock=data.data.stockNuevo;producto.value.existencia=data.data.existenciaNueva;await Swal.fire('Stock actualizado correctamente',`Se agregaron ${n} unidades. Stock actual: ${data.data.stockNuevo}.`,'success');Modal.getInstance(modal.value)?.hide();emit('updated',data.data)}catch(e){error.value=Array.isArray(e.response?.data?.message)?e.response.data.message[0]:e.response?.data?.message||'No fue posible actualizar el stock';await Swal.fire('No fue posible actualizar el stock',error.value,'error')}finally{saving.value=false}};
-onMounted(()=>modal.value?.addEventListener('hidden.bs.modal',reset));onBeforeUnmount(()=>modal.value?.removeEventListener('hidden.bs.modal',reset));defineExpose({open});
+const reset=()=>{
+    producto.value=null;
+    cantidad.value='';
+    loading.value=false;
+    saving.value=false;
+    error.value=''
+};
+const open=async(id)=>{
+    reset();
+    Modal.getOrCreateInstance(modal.value).show();
+    loading.value=true;
+    try{
+        producto.value=(await getProducto(id)).data
+    }catch(e){
+        Modal.getInstance(modal.value)?.hide();
+        await Swal.fire('No fue posible cargar el producto',e.response?.data?.message||'Error de conexión','error')
+    }finally{
+        loading.value=false
+    }
+};
+const submit=async()=>{
+    if(saving.value)return;
+    const n=Number(cantidad.value);
+    if(!/^\d+$/.test(String(cantidad.value))||!Number.isInteger(n)||n<1||n>1000000){
+        error.value='La cantidad debe ser un entero entre 1 y 1,000,000.';
+        return
+    }
+    error.value='';
+    saving.value=true;
+    try{
+        const {data}=await agregarStockProducto(producto.value.id,n);
+        producto.value.stock=data.data.stockNuevo;
+        producto.value.existencia=data.data.existenciaNueva;
+        await Swal.fire('Stock actualizado correctamente',`Se agregaron ${n} unidades. Stock actual: ${data.data.stockNuevo}.`,'success');
+        Modal.getInstance(modal.value)?.hide();
+        emit('updated',data.data)
+    }catch(e){
+        error.value=Array.isArray(e.response?.data?.message)?e.response.data.message[0]:e.response?.data?.message||'No fue posible actualizar el stock';
+        await Swal.fire('No fue posible actualizar el stock',error.value,'error')
+    }finally{
+        saving.value=false
+    }
+};
+onMounted(()=>modal.value?.addEventListener('hidden.bs.modal',reset));
+onBeforeUnmount(()=>modal.value?.removeEventListener('hidden.bs.modal',reset));
+defineExpose({open});
 </script>
-<template><div ref="modal" class="modal fade" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content modal-producto"><div class="modal-header"><h5 class="modal-title">Agregar stock</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar" /></div><div class="modal-body"><div v-if="loading" class="text-center p-4"><span class="spinner-border" /></div><template v-else-if="producto"><dl class="row"><dt class="col-5">Producto</dt><dd class="col-7">{{producto.descripcion}}</dd><dt class="col-5">Código</dt><dd class="col-7">{{producto.codigo}}</dd><dt class="col-5">Stock actual</dt><dd class="col-7">{{producto.stock}}</dd><dt class="col-5">Existencia disponible</dt><dd class="col-7">{{producto.existencia}}</dd></dl><label class="form-label" for="cantidadStock">Cantidad a agregar</label><input id="cantidadStock" v-model="cantidad" type="number" min="1" max="1000000" step="1" class="form-control" :class="{'is-invalid':error}" @keydown.enter.prevent="submit"><div class="invalid-feedback">{{error}}</div><div class="alert alert-info mt-3 mb-0">Nuevo stock: <strong>{{nuevoStock}}</strong></div></template></div><div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal" :disabled="saving">Cancelar</button><button type="button" class="btn btn-success" :disabled="saving||loading" @click="submit"><span v-if="saving" class="spinner-border spinner-border-sm me-2" />Agregar</button></div></div></div></div></template>
+<template>
+    <div ref="modal" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-producto">
+                <div class="modal-header">
+                    <h5 class="modal-title">Agregar stock</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar" />
+                </div>
+                <div class="modal-body">
+                    <div v-if="loading" class="text-center p-4">
+                        <span class="spinner-border" />
+                    </div>
+                    <template v-else-if="producto">
+                        <dl class="row">
+                            <dt class="col-5">Producto</dt>
+                            <dd class="col-7">{{producto.descripcion}}</dd>
+                            <dt class="col-5">Código</dt>
+                            <dd class="col-7">{{producto.codigo}}</dd>
+                            <dt class="col-5">Stock actual</dt>
+                            <dd class="col-7">{{producto.stock}}</dd>
+                            <dt class="col-5">Existencia disponible</dt>
+                            <dd class="col-7">{{producto.existencia}}</dd>
+                        </dl>
+                        <label class="form-label" for="cantidadStock">Cantidad a agregar</label>
+                        <input id="cantidadStock" v-model="cantidad" type="number" min="1" max="1000000" step="1" class="form-control" :class="{'is-invalid':error}" @keydown.enter.prevent="submit">
+                        <div class="invalid-feedback">{{error}}</div>
+                        <div class="alert alert-info mt-3 mb-0">Nuevo stock: <strong>{{nuevoStock}}</strong></div>
+                    </template>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" :disabled="saving">Cancelar</button>
+                    <button type="button" class="btn btn-success" :disabled="saving||loading" @click="submit">
+                        <span v-if="saving" class="spinner-border spinner-border-sm me-2" />Agregar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>

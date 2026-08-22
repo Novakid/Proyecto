@@ -21,7 +21,13 @@ const labelPresets = {
   '50x25': { anchoMm: 50, altoMm: 25 }, '50x30': { anchoMm: 50, altoMm: 30 },
   '60x40': { anchoMm: 60, altoMm: 40 }, '100x50': { anchoMm: 100, altoMm: 50 }
 };
-const savedLabelConfig = (() => { try { return JSON.parse(localStorage.getItem('label_print_config') || 'null'); } catch { return null; } })();
+const savedLabelConfig = (() => {
+    try {
+        return JSON.parse(localStorage.getItem('label_print_config') || 'null');
+    } catch {
+        return null;
+    }
+})();
 const labelConfig = ref(savedLabelConfig || { preset: '50x25', anchoMm: 50, altoMm: 25, margenMm: 0, paddingMm: 2, fuentePt: 9, orientacion: 'horizontal' });
 const totalEtiquetas = computed(() => (facturaEtiquetas.value?.conceptos || []).reduce((sum, item) => sum + Number(item.cantidad || 0), 0));
 onMounted(async () => {
@@ -39,13 +45,23 @@ const editarFactura = async (item) => {
 };
 const cancelarFactura = async (item) => {
   if (!window.confirm(`¿Cancelar la factura ${item.folio_cliente}? El inventario será restaurado.`)) return;
-  try { await cancelar(item.id); await cargarFacturas(); }
-  catch (error) { mensajeAccion.value = error.response?.data?.message || 'No fue posible cancelar la factura'; }
+  try {
+    await cancelar(item.id);
+    await cargarFacturas();
+  }
+  catch (error) {
+    mensajeAccion.value = error.response?.data?.message || 'No fue posible cancelar la factura';
+  }
 };
 const guardarFactura = async () => {
   mensajeAccion.value = '';
-  try { await construirFactura(); Modal.getInstance(document.getElementById('modalCrear'))?.hide(); }
-  catch (error) { mensajeAccion.value = error.response?.data?.message || error.message || 'No fue posible guardar'; }
+  try {
+    await construirFactura();
+    Modal.getInstance(document.getElementById('modalCrear'))?.hide();
+  }
+  catch (error) {
+    mensajeAccion.value = error.response?.data?.message || error.message || 'No fue posible guardar';
+  }
 };
 const pdfCompleto = async (item) => generarPDF(await obtener(item.id));
 const abrirConfiguracionEtiquetas = async (item) => {
@@ -53,7 +69,9 @@ const abrirConfiguracionEtiquetas = async (item) => {
   try {
     facturaEtiquetas.value = await obtener(item.id);
     Modal.getOrCreateInstance(document.getElementById('modalEtiquetas')).show();
-  } catch (error) { mensajeAccion.value = error.response?.data?.message || 'No fue posible cargar los productos de la factura'; }
+  } catch (error) {
+    mensajeAccion.value = error.response?.data?.message || 'No fue posible cargar los productos de la factura';
+  }
 };
 const timbrarSimulado = async (item) => {
   if (timbrandoId.value || item.fecha_cancelado || Number(item.timbrada) === 1) return;
@@ -70,7 +88,9 @@ const timbrarSimulado = async (item) => {
     await Swal.fire('Factura marcada como timbrada correctamente.', 'Registro interno; documento sin validez fiscal.', 'success');
   } catch (error) {
     await Swal.fire('No fue posible marcar la factura', error.response?.data?.message || 'Error de conexión', 'error');
-  } finally { timbrandoId.value = null; }
+  } finally {
+    timbrandoId.value = null;
+  }
 };
 const aplicarPresetEtiqueta = () => {
   const preset = labelPresets[labelConfig.value.preset];
@@ -91,8 +111,12 @@ const abrirPreviewEtiquetas = async () => {
     localStorage.setItem('label_print_config', JSON.stringify({ ...config, preset: labelConfig.value.preset }));
     const result = await previewEtiquetas(facturaEtiquetas.value, config);
     avisosEtiquetas.value = result?.warnings || [];
-  } catch (error) { errorEtiquetas.value = error.message || 'No fue posible abrir la vista previa'; }
-  finally { procesandoEtiquetas.value = false; }
+  } catch (error) {
+    errorEtiquetas.value = error.message || 'No fue posible abrir la vista previa';
+  }
+  finally {
+    procesandoEtiquetas.value = false;
+  }
 };
 const toggleActions = (event) => Dropdown.getOrCreateInstance(event.currentTarget).toggle();
 const facturasHoy = computed(() => {

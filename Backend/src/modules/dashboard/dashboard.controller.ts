@@ -19,7 +19,9 @@ export class DashboardController {
   ) {}
 
   @Get('resumen')
-  summary() { return this.dashboard.getSummary(); }
+  summary() {
+    return this.dashboard.getSummary();
+  }
 
   @Sse('eventos')
   stream(): Observable<MessageEvent> { return this.events.stream(); }

@@ -33,26 +33,63 @@ const productImage = (product) => {
   return image ? getApiAssetUrl(image.url) : '';
 };
 const apiError = (e) => Array.isArray(e.response?.data?.message) ? e.response.data.message.join(', ') : (e.response?.data?.message || e.message || 'Ocurrió un error');
-async function show(id) { try { detail.value = (await obtenerCotizacion(id)).data; } catch (e) { Swal.fire('Error', apiError(e), 'error'); } }
-async function edit(id) { try { formApi.open((await obtenerCotizacion(id)).data); } catch (e) { Swal.fire('Error', apiError(e), 'error'); } }
-async function submit() { try { const result = await formApi.save(); Swal.fire('Listo', result.message, 'success'); } catch (e) { Swal.fire('No fue posible guardar', apiError(e), 'error'); } }
+async function show(id) {
+    try {
+        detail.value = (await obtenerCotizacion(id)).data;
+    } catch (e) {
+        Swal.fire('Error', apiError(e), 'error');
+    }
+}
+async function edit(id) {
+    try {
+        formApi.open((await obtenerCotizacion(id)).data);
+    } catch (e) {
+        Swal.fire('Error', apiError(e), 'error');
+    }
+}
+async function submit() {
+    try {
+        const result = await formApi.save();
+        Swal.fire('Listo', result.message, 'success');
+    } catch (e) {
+        Swal.fire('No fue posible guardar', apiError(e), 'error');
+    }
+}
 async function action(quote, kind) {
-  const labels = { cancel: ['Cancelar cotización', 'cancelar', cancelarCotizacion], reactivate: ['Reactivar cotización', 'reactivar', reactivarCotizacion], invoice: ['Generar factura', 'convertir en factura', generarFacturaCotizacion] };
-  const [title, verb, request] = labels[kind];
-  const confirmed = await Swal.fire({ title, text: `¿Deseas ${verb} ${quote.folioCotizacion}?`, icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, continuar', cancelButtonText: 'Volver' });
-  if (!confirmed.isConfirmed) return;
-  try { const { data } = await request(quote.id); await cargar(); Swal.fire('Listo', data.message, 'success'); } catch (e) { Swal.fire('Operación rechazada', apiError(e), 'error'); }
+    const labels = { cancel: ['Cancelar cotización', 'cancelar', cancelarCotizacion], reactivate: ['Reactivar cotización', 'reactivar', reactivarCotizacion], invoice: ['Generar factura', 'convertir en factura', generarFacturaCotizacion] };
+    const [title, verb, request] = labels[kind];
+    const confirmed = await Swal.fire({ title, text: `¿Deseas ${verb} ${quote.folioCotizacion}?`, icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, continuar', cancelButtonText: 'Volver' });
+    if (!confirmed.isConfirmed) return;
+    try {
+        const { data } = await request(quote.id);
+        await cargar();
+        Swal.fire('Listo', data.message, 'success');
+    } catch (e) {
+        Swal.fire('Operación rechazada', apiError(e), 'error');
+    }
 }
 async function pdf(id) {
-  try {
-    const q = (await obtenerCotizacion(id)).data, doc = new jsPDF();
-    doc.setFontSize(18); doc.text('APARICIO - COTIZACIÓN', 14, 18); doc.setFontSize(10);
-    doc.text(`Folio: ${q.folioCotizacion}`, 14, 28); doc.text(`Fecha: ${date(q.fechaCotizacion)}`, 14, 34);
-    doc.text(`Cliente: ${q.datosFiscalesSnapshot?.razon_social || '—'}`, 14, 40); doc.text(`RFC: ${q.datosFiscalesSnapshot?.rfc || '—'}`, 14, 46);
-    autoTable(doc, { startY: 54, head: [['Código', 'Descripción', 'Cant.', 'Precio', 'Desc.', 'Total']], body: q.detalles.map((x) => [x.codigoProducto, x.nombreProducto, x.cantidad, money(x.precioUnitario), `${x.descuento}%`, money(x.montoTotal)]) });
-    const y = doc.lastAutoTable.finalY + 8; doc.text(`Subtotal: ${money(q.subtotal)}`, 145, y); doc.text(`Descuento: ${money(q.descuento)}`, 145, y + 6); doc.text(`IVA: ${money(q.iva)}`, 145, y + 12); doc.text(`Total: ${money(q.total)}`, 145, y + 18); doc.setTextColor(120); doc.text('Documento informativo sin validez fiscal.', 14, y + 28);
-    doc.save(`${q.folioCotizacion}.pdf`);
-  } catch (e) { Swal.fire('Error', apiError(e), 'error'); }
+    try {
+        const q = (await obtenerCotizacion(id)).data, doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text('APARICIO - COTIZACIÓN', 14, 18);
+        doc.setFontSize(10);
+        doc.text(`Folio: ${q.folioCotizacion}`, 14, 28);
+        doc.text(`Fecha: ${date(q.fechaCotizacion)}`, 14, 34);
+        doc.text(`Cliente: ${q.datosFiscalesSnapshot?.razon_social || '—'}`, 14, 40);
+        doc.text(`RFC: ${q.datosFiscalesSnapshot?.rfc || '—'}`, 14, 46);
+        autoTable(doc, { startY: 54, head: [['Código', 'Descripción', 'Cant.', 'Precio', 'Desc.', 'Total']], body: q.detalles.map((x) => [x.codigoProducto, x.nombreProducto, x.cantidad, money(x.precioUnitario), `${x.descuento}%`, money(x.montoTotal)]) });
+        const y = doc.lastAutoTable.finalY + 8;
+        doc.text(`Subtotal: ${money(q.subtotal)}`, 145, y);
+        doc.text(`Descuento: ${money(q.descuento)}`, 145, y + 6);
+        doc.text(`IVA: ${money(q.iva)}`, 145, y + 12);
+        doc.text(`Total: ${money(q.total)}`, 145, y + 18);
+        doc.setTextColor(120);
+        doc.text('Documento informativo sin validez fiscal.', 14, y + 28);
+        doc.save(`${q.folioCotizacion}.pdf`);
+    } catch (e) {
+        Swal.fire('Error', apiError(e), 'error');
+    }
 }
 onMounted(() => cargar(1));
 </script>

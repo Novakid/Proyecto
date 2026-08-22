@@ -62,7 +62,11 @@ router.beforeEach(async (to) => {
   if (to.path === '/login' && isAuthenticated()) return '/';
   if (!to.meta.public && isAuthenticated()) {
     const auth = useAuthorizationStore();
-    try { await auth.load(); } catch { return '/login'; }
+    try {
+      await auth.load();
+    } catch {
+      return '/login';
+    }
     if (to.meta.requiredPermission && !auth.can(to.meta.requiredPermission)) return to.path === '/forbidden' ? true : '/forbidden';
   }
   return true;

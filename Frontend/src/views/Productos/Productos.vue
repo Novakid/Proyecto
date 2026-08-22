@@ -15,9 +15,33 @@ const authorization = useAuthorizationStore();
 const can = (permission) => authorization.can(permission);
 const errorCarga = ref('');
 const stockModal = ref(null);
-const stockActualizado = (data) => { const item=productos.value.find(p=>p.id===data.productoId);if(item){item.stock=data.stockNuevo;item.existencia=data.existenciaNueva} };
-const desactivarProducto = async(item)=>{const r=await Swal.fire({icon:'warning',title:'¿Desactivar este producto?',text:'El producto dejará de estar disponible para operaciones nuevas.',showCancelButton:true,confirmButtonText:'Sí, desactivar',cancelButtonText:'Cancelar'});if(!r.isConfirmed)return;try{await deleteProducto(item.id);item.activo=false;await Swal.fire('Producto desactivado correctamente','','success')}catch(e){await Swal.fire('No fue posible desactivar el producto',e.response?.data?.message||'Error de conexión','error')}};
-const reactivarProducto = async(item)=>{try{await reactivateProductoApi(item.id);item.activo=true;await Swal.fire('Producto reactivado correctamente','','success')}catch(e){await Swal.fire('No fue posible reactivar el producto',e.response?.data?.message||'Error de conexión','error')}};
+const stockActualizado = (data) => {
+    const item=productos.value.find(p=>p.id===data.productoId);
+    if(item){
+        item.stock=data.stockNuevo;
+        item.existencia=data.existenciaNueva
+    }
+};
+const desactivarProducto = async(item)=>{
+    const r=await Swal.fire({icon:'warning',title:'¿Desactivar este producto?',text:'El producto dejará de estar disponible para operaciones nuevas.',showCancelButton:true,confirmButtonText:'Sí, desactivar',cancelButtonText:'Cancelar'});
+    if(!r.isConfirmed)return;
+    try{
+        await deleteProducto(item.id);
+        item.activo=false;
+        await Swal.fire('Producto desactivado correctamente','','success')
+    }catch(e){
+        await Swal.fire('No fue posible desactivar el producto',e.response?.data?.message||'Error de conexión','error')
+    }
+};
+const reactivarProducto = async(item)=>{
+    try{
+        await reactivateProductoApi(item.id);
+        item.activo=true;
+        await Swal.fire('Producto reactivado correctamente','','success')
+    }catch(e){
+        await Swal.fire('No fue posible reactivar el producto',e.response?.data?.message||'Error de conexión','error')
+    }
+};
 onMounted(async () => {
   try {
     await cargarProductos();

@@ -61,7 +61,10 @@ export function useFacturasForm () {
         mostrarSugerencias.value = true;
     };
     const buscarClientes = async () => {
-        if (form.value.cliente.nombre.length < 3) { clientesFiltrados.value = []; return; }
+        if (form.value.cliente.nombre.length < 3) {
+            clientesFiltrados.value = [];
+            return;
+        }
         clientesFiltrados.value = (await buscarClientesFactura(form.value.cliente.nombre)).data;
     };
     const seleccionarClientePorNombre = () => {
@@ -125,7 +128,11 @@ export function useFacturasForm () {
         solicitudProductos?.abort();
         const term = busqueda.value.trim();
         indiceProductoActivo.value = -1;
-        if (!term) { productosEncontrados.value = []; buscandoProductos.value = false; return; }
+        if (!term) {
+            productosEncontrados.value = [];
+            buscandoProductos.value = false;
+            return;
+        }
         temporizadorProductos = setTimeout(async () => {
             solicitudProductos = new AbortController();
             buscandoProductos.value = true;
@@ -134,14 +141,22 @@ export function useFacturasForm () {
                 productosEncontrados.value = busqueda.value.trim() === term && Array.isArray(data) ? data : [];
             } catch (error) {
                 if (error.code !== 'ERR_CANCELED') mensajeFactura.value = error.response?.data?.message || 'No fue posible buscar productos';
-            } finally { buscandoProductos.value = false; }
+            } finally {
+                buscandoProductos.value = false;
+            }
         }, 300);
     };
     const agregarProducto = async (producto) => {
-        if (!producto || !producto.activo || Number(producto.existencia) <= 0) { mensajeFactura.value = 'El producto no está disponible'; return; }
+        if (!producto || !producto.activo || Number(producto.existencia) <= 0) {
+            mensajeFactura.value = 'El producto no está disponible';
+            return;
+        }
         const existe = productosFactura.value.find(p => p.id === producto.id);
         if (existe) {
-            if (existe.cantidad >= Number(existe.existencia)) { mensajeFactura.value = `Stock máximo alcanzado para ${existe.codigo}`; return; }
+            if (existe.cantidad >= Number(existe.existencia)) {
+                mensajeFactura.value = `Stock máximo alcanzado para ${existe.codigo}`;
+                return;
+            }
             existe.cantidad += 1;
             mensajeFactura.value = `${existe.codigo}: cantidad aumentada`;
             busqueda.value = ''; productosEncontrados.value = [];
@@ -165,9 +180,20 @@ export function useFacturasForm () {
         setTimeout(() => document.getElementById('buscarProductoFactura')?.focus(), 0);
     };
     const teclaProducto = async (event) => {
-        if (event.key === 'Escape') { productosEncontrados.value = []; return; }
-        if (event.key === 'ArrowDown') { event.preventDefault(); indiceProductoActivo.value = Math.min(indiceProductoActivo.value + 1, productosEncontrados.value.length - 1); return; }
-        if (event.key === 'ArrowUp') { event.preventDefault(); indiceProductoActivo.value = Math.max(indiceProductoActivo.value - 1, 0); return; }
+        if (event.key === 'Escape') {
+            productosEncontrados.value = [];
+            return;
+        }
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            indiceProductoActivo.value = Math.min(indiceProductoActivo.value + 1, productosEncontrados.value.length - 1);
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            indiceProductoActivo.value = Math.max(indiceProductoActivo.value - 1, 0);
+            return;
+        }
         if (event.key !== 'Enter') return;
         event.preventDefault();
         const term = busqueda.value.trim();
@@ -182,7 +208,9 @@ export function useFacturasForm () {
                 if (busqueda.value.trim() === term) productosEncontrados.value = Array.isArray(data) ? data : [];
             } catch (error) {
                 if (error.code !== 'ERR_CANCELED') mensajeFactura.value = error.response?.data?.message || 'No fue posible buscar productos';
-            } finally { buscandoProductos.value = false; }
+            } finally {
+                buscandoProductos.value = false;
+            }
         }
         const exact = productosEncontrados.value.find(p => String(p.codigo).trim().toLowerCase() === term.toLowerCase());
         const selected = exact || (indiceProductoActivo.value >= 0 ? productosEncontrados.value[indiceProductoActivo.value] : null);
@@ -359,7 +387,10 @@ export function useFacturasForm () {
             }
         })
         let y = doc.lastAutoTable.finalY + 8
-        if (y > 245) { doc.addPage(); y = 20; }
+        if (y > 245) {
+            doc.addPage();
+            y = 20;
+        }
 
         doc.setFillColor(240,240,240)
         doc.roundedRect(125,y,75,34,2,2,"F")

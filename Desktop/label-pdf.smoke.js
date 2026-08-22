@@ -23,11 +23,20 @@ app.whenReady().then(async () => {
       const generated = generarHTML(labels, { anchoMm, altoMm, margenMm: 0, paddingMm: 2, fuentePt: 9, orientacion: 'horizontal' });
       const temporaryFile = path.join(os.tmpdir(), `aparicio-label-smoke-${randomUUID()}.html`);
       fs.writeFileSync(temporaryFile, generated.html, 'utf8');
-      try { await window.loadFile(temporaryFile); }
-      finally { fs.rmSync(temporaryFile, { force: true }); }
+      try {
+        await window.loadFile(temporaryFile);
+      }
+      finally {
+        fs.rmSync(temporaryFile, { force: true });
+      }
       const pdf = await window.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, margins: { top: 0, bottom: 0, left: 0, right: 0 } });
       fs.writeFileSync(path.join(outputDirectory, `${name}.pdf`), pdf);
     }
-  } finally { window.destroy(); }
+  } finally {
+    window.destroy();
+  }
   app.quit();
-}).catch((error) => { console.error(error); app.exit(1); });
+}).catch((error) => {
+  console.error(error);
+  app.exit(1);
+});
